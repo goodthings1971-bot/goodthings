@@ -184,59 +184,76 @@
       const [settings, setSettings] = useState(null);
       const [redeemableProducts, setRedeemableProducts] = useState([]);
       const [liffError, setLiffError] = useState(null);
+      const [isLoading, setIsLoading] = useState(true);
 
       useEffect(() => {
-        // 初始化 LIFF
-        const initLiff = async () => {
-          if (typeof liff === 'undefined') {
-            console.warn('LIFF SDK not loaded');
-            setUser({ lineId: 'guest', name: '訪客 (No LIFF)', points: 0 });
-            return;
-          }
+        const initApp = async () => {
+          console.log('AppProvider: Start initialization');
           try {
-            await liff.init({ liffId: LIFF_ID });
-            if (liff.isLoggedIn()) {
-              const profile = await liff.getProfile();
-              const lineId = profile.userId;
-              
-              // 取得後端會員資料
-              const dbUser = await api.getUserProfile(lineId);
-              setUser({
-                lineId,
-                name: profile.displayName,
-                pictureUrl: profile.pictureUrl,
-                points: 0,
-                coupons: [],
-                redemptions: [],
-                wishlist: '',
-                ...(dbUser || {}) // 覆蓋資料庫中的資料
-              });
-            } else {
-              // 未登入，顯示訪客或引導登入
-              // liff.login(); // 可選擇自動登入
-              setUser({ lineId: 'guest', name: '訪客', points: 0 });
+            // 1. Load LocalStorage
+            try {
+              const savedCart = localStorage.getItem('cart');
+              if (savedCart) setCart(JSON.parse(savedCart));
+            } catch (e) {
+              console.error('LocalStorage Error', e);
             }
-          } catch (err) {
-            console.error('LIFF Init Failed', err);
-            setLiffError(err.toString());
-            // 測試用 Fallback
-            setUser({ lineId: 'test_user', name: '測試會員', points: 100 });
+
+            // 2. Parallel Load: LIFF, Settings, Products
+            const loadLiff = async () => {
+              if (typeof liff === 'undefined') {
+                console.warn('LIFF SDK not loaded');
+                setUser({ lineId: 'guest', name: '訪客 (No LIFF)', points: 0 });
+                return;
+              }
+              try {
+                await liff.init({ liffId: LIFF_ID });
+                if (liff.isLoggedIn()) {
+                  const profile = await liff.getProfile();
+                  const lineId = profile.userId;
+                  const dbUser = await api.getUserProfile(lineId);
+                  setUser({
+                    lineId,
+                    name: profile.displayName,
+                    pictureUrl: profile.pictureUrl,
+                    points: 0,
+                    coupons: [],
+                    redemptions: [],
+                    wishlist: '',
+                    ...(dbUser || {})
+                  });
+                } else {
+                  setUser({ lineId: 'guest', name: '訪客', points: 0 });
+                }
+              } catch (err) {
+                console.error('LIFF Init Failed', err);
+                setLiffError(err.toString());
+                setUser({ lineId: 'test_user', name: '測試會員 (LIFF Error)', points: 0 });
+              }
+            };
+
+            const loadData = async () => {
+              try {
+                const [s, p] = await Promise.all([
+                  api.fetchSettings(),
+                  api.fetchProducts()
+                ]);
+                if (s) setSettings(s);
+                if (p) setRedeemableProducts(p.filter(x => (x.redeemPoints || 0) > 0));
+              } catch (err) {
+                console.error('Data Load Failed', err);
+              }
+            };
+
+            await Promise.all([loadLiff(), loadData()]);
+          } catch (error) {
+            console.error('App Initialization Error', error);
+          } finally {
+            console.log('AppProvider: Initialization done');
+            setIsLoading(false);
           }
         };
-        initLiff();
 
-        // 載入設定與商品
-        try {
-          const savedCart = localStorage.getItem('cart');
-          if (savedCart) setCart(JSON.parse(savedCart));
-        } catch (e) {
-          console.error('LocalStorage Error', e);
-        }
-
-        api.fetchSettings().then(setSettings).catch(console.error);
-        api.fetchProducts().then(p => {
-          if (p) setRedeemableProducts(p.filter(x => (x.redeemPoints || 0) > 0));
-        }).catch(console.error);
+        initApp();
       }, []);
 
       useEffect(() => {
@@ -264,6 +281,16 @@
       const pointsUsed = cart.reduce((t, i) => (i.isRedemption && i.redeemPoints) ? t + i.redeemPoints * i.quantity : t, 0);
       const isFreeShipping = settings?.freeShippingThreshold ? cartTotal >= settings.freeShippingThreshold : false;
       const shippingFee = isFreeShipping ? 0 : (settings?.shippingFee || 60);
+
+      if (isLoading) {
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-yellow-50 text-orange-500">
+            <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+            <div className="font-bold text-lg">美好正在發生...</div>
+            <div className="text-sm text-gray-400 mt-2">Loading...</div>
+          </div>
+        );
+      }
 
       return (
         <AppContext.Provider value={{
