@@ -1,1 +1,44 @@
-import React from 'react'; import ReactDOM from 'react-dom'; import { BrowserRouter as Router } from 'react-router-dom'; import App from './App'; import './index.css'; const rootElement = document.getElementById('root'); if (rootElement) { ReactDOM.render( <Router> <App /> </Router>, rootElement ); } else { console.error("Root element not found. Please check the index.html file."); }
+<html>
+<head>
+    <title>Good Things App</title>
+    <script src="react-router-dom.min.js"></script>
+    <script>
+        // Error handling
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error(`Error: ${message} at ${source}:${lineno}:${colno}`);
+            // Show user-friendly message
+            alert('An error occurred. Please try again later.');
+        };
+
+        // Proper React Router DOM implementation
+        import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+
+        // Function to set up routes
+        function App() {
+            return (
+                <Router>
+                    <Switch>
+                        <Route path="/" exact component={Home} />
+                        <Route path="/about" component={About} />
+                        <Route path="/contact" component={Contact} />
+                        {/* Add more routes as needed */}
+                        <Route component={NotFound} />
+                    </Switch>
+                </Router>
+            );
+        }
+
+        // Example Components
+        function Home() { return <h1>Home</h1>; }
+        function About() { return <h1>About</h1>; }
+        function Contact() { return <h1>Contact</h1>; }
+        function NotFound() { return <h1>404 Not Found</h1>; }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        // ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
