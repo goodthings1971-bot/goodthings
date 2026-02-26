@@ -73,21 +73,26 @@
   </div>
 
   <script type="text/babel">
-    console.log('App starting...');
+    console.log('Step 1: Script started');
 
     // 檢查依賴是否載入
+    if (typeof React === 'undefined') console.error('React missing');
+    if (typeof ReactDOM === 'undefined') console.error('ReactDOM missing');
+    if (typeof ReactRouterDOM === 'undefined') console.error('ReactRouterDOM missing');
+
     if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof ReactRouterDOM === 'undefined') {
       document.getElementById('root').innerHTML = '<div style="padding:20px;color:red;">系統錯誤：核心元件未載入，請檢查網路連線。</div>';
       throw new Error('React 或 ReactRouterDOM 未正確載入');
     }
+    console.log('Step 2: Dependencies loaded');
 
     const { useState, useEffect, createContext, useContext } = React;
     const { HashRouter, Routes, Route, Link, useNavigate, useLocation, useParams } = ReactRouterDOM;
 
     // --- 重要設定 ---
-    // 請將此處替換為您 GAS 部署後的「網頁應用程式網址」 (以 /exec 結尾)
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxG9xUAxbLvWf6fP9solDNtHgHJ8BV3PpMZwYwhXcl7T7BYQ10cU1c3VLL3yFV6ZNvF/exec'; 
     const LIFF_ID = '2009248623-E3UOP9Mc';
+    console.log('Step 3: Config loaded');
 
     // --- API 服務 (Fetch) ---
     const api = {
@@ -130,6 +135,7 @@
       submitOrder: (order) => api.post('createOrder', { order }),
       updateUserProfile: (profile) => api.post('updateUserProfile', { profile })
     };
+    console.log('Step 4: API initialized');
 
     // --- Utils ---
     const generateOrderId = () => {
@@ -167,6 +173,7 @@
       HelpCircle:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>,
       Share2:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
     };
+    console.log('Step 5: Icons defined');
 
     // --- Context ---
     const AppContext = createContext();
@@ -287,6 +294,7 @@
     const useAppContext = () => useContext(AppContext);
 
     // --- Components ---
+    console.log('Step 6: Defining components');
     class ErrorBoundary extends React.Component {
       constructor(props) {
         super(props);
@@ -728,8 +736,19 @@
       </ErrorBoundary>
     );
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    console.log('Step 7: App component defined, mounting root');
+    try {
+      const container = document.getElementById('root');
+      if (!container) throw new Error('Root element not found');
+      
+      const root = ReactDOM.createRoot(container);
+      console.log('Step 8: Root created');
+      root.render(<App />);
+      console.log('Step 9: Render called');
+    } catch (err) {
+      console.error('Render Error:', err);
+      document.getElementById('root').innerHTML = `<div style="padding:20px;color:red;">啟動失敗: ${err.message}</div>`;
+    }
   </script>
 </body>
 </html>
