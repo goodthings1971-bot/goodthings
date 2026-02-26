@@ -59,12 +59,19 @@
     };
   </script>
 
-  <div id="root"></div>
+  <div id="root">
+    <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#fefce8;color:#f97316;font-weight:bold;font-family:sans-serif;">
+      載入中... (Loading...)
+    </div>
+  </div>
 
   <script type="text/babel">
+    console.log('App starting...');
+
     // 檢查依賴是否載入
     if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof ReactRouterDOM === 'undefined') {
-      throw new Error('React 或 ReactRouterDOM 未正確載入，請檢查網路連線。');
+      document.getElementById('root').innerHTML = '<div style="padding:20px;color:red;">系統錯誤：核心元件未載入，請檢查網路連線。</div>';
+      throw new Error('React 或 ReactRouterDOM 未正確載入');
     }
 
     const { useState, useEffect, createContext, useContext } = React;
@@ -72,7 +79,6 @@
 
     // --- 重要設定 ---
     // 請將此處替換為您 GAS 部署後的「網頁應用程式網址」 (以 /exec 結尾)
-    // 您的庫存連結是 library，請務必重新部署為「網頁應用程式」
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxG9xUAxbLvWf6fP9solDNtHgHJ8BV3PpMZwYwhXcl7T7BYQ10cU1c3VLL3yFV6ZNvF/exec'; 
     const LIFF_ID = '2009248623-E3UOP9Mc';
 
@@ -81,22 +87,34 @@
       // GET 請求
       get: async (action, params = {}) => {
         if (!GAS_API_URL.includes('/exec')) {
-          console.error('GAS_API_URL 設定錯誤，請填入部署後的 Web App URL');
+          console.error('GAS_API_URL 設定錯誤');
           return null;
         }
         const query = new URLSearchParams({ action, ...params }).toString();
-        const res = await fetch(`${GAS_API_URL}?${query}`);
-        return res.json();
+        try {
+          const res = await fetch(`${GAS_API_URL}?${query}`);
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (e) {
+          console.error('API GET Error:', e);
+          return null;
+        }
       },
-      // POST 請求 (使用 text/plain 避免 CORS 預檢)
+      // POST 請求
       post: async (action, data) => {
         if (!GAS_API_URL.includes('/exec')) return null;
-        const res = await fetch(GAS_API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action, ...data }),
-          headers: { 'Content-Type': 'text/plain' }
-        });
-        return res.json();
+        try {
+          const res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action, ...data }),
+            headers: { 'Content-Type': 'text/plain' }
+          });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (e) {
+          console.error('API POST Error:', e);
+          throw e;
+        }
       },
       fetchProducts: () => api.get('getProducts'),
       fetchCategories: () => api.get('getCategories'),
@@ -156,6 +174,11 @@
       useEffect(() => {
         // 初始化 LIFF
         const initLiff = async () => {
+          if (typeof liff === 'undefined') {
+            console.warn('LIFF SDK not loaded');
+            setUser({ lineId: 'guest', name: '訪客 (No LIFF)', points: 0 });
+            return;
+          }
           try {
             await liff.init({ liffId: LIFF_ID });
             if (liff.isLoggedIn()) {
@@ -172,7 +195,7 @@
                 coupons: [],
                 redemptions: [],
                 wishlist: '',
-                ...dbUser // 覆蓋資料庫中的資料
+                ...(dbUser || {}) // 覆蓋資料庫中的資料
               });
             } else {
               // 未登入，顯示訪客或引導登入
@@ -189,8 +212,12 @@
         initLiff();
 
         // 載入設定與商品
-        const savedCart = localStorage.getItem('cart');
-        if (savedCart) setCart(JSON.parse(savedCart));
+        try {
+          const savedCart = localStorage.getItem('cart');
+          if (savedCart) setCart(JSON.parse(savedCart));
+        } catch (e) {
+          console.error('LocalStorage Error', e);
+        }
 
         api.fetchSettings().then(setSettings).catch(console.error);
         api.fetchProducts().then(p => {
@@ -198,7 +225,13 @@
         }).catch(console.error);
       }, []);
 
-      useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
+      useEffect(() => {
+        try {
+          localStorage.setItem('cart', JSON.stringify(cart));
+        } catch (e) {
+          console.error('LocalStorage Save Error', e);
+        }
+      }, [cart]);
 
       const addToCart = (p, q, v, isRedeem=false) => {
         setCart(prev => {
@@ -537,18 +570,37 @@
       const navigate = useNavigate();
       const { addToCart } = useAppContext();
       const [product, setProduct] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
       const [imgIdx, setImgIdx] = useState(0);
       const [variant, setVariant] = useState('');
 
       useEffect(() => {
+        setLoading(true);
         api.fetchProducts().then(p => {
-          if (!p) return;
-          const found = p.find(x => x.id === id);
-          if (found) { setProduct(found); if(found.variants?.[0]) setVariant(found.variants[0]); }
+          if (!p) {
+            setError('無法載入商品資料');
+            setLoading(false);
+            return;
+          }
+          // 確保 ID 比對時類型一致 (轉為字串)
+          const found = p.find(x => String(x.id) === String(id));
+          if (found) { 
+            setProduct(found); 
+            if(found.variants?.[0]) setVariant(found.variants[0]); 
+          } else {
+            setError('找不到此商品');
+          }
+          setLoading(false);
+        }).catch(err => {
+          console.error(err);
+          setError('發生錯誤');
+          setLoading(false);
         });
       }, [id]);
 
-      if (!product) return <div>Loading...</div>;
+      if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+      if (error || !product) return <div className="min-h-screen flex flex-col items-center justify-center"><p className="text-red-500 mb-4">{error || '商品不存在'}</p><button onClick={()=>navigate('/')} className="bg-orange-500 text-white px-4 py-2 rounded">回首頁</button></div>;
 
       return (
         <div className="min-h-screen bg-yellow-50 pb-24">
