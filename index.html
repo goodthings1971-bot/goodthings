@@ -22,6 +22,13 @@
 
   <!-- LINE LIFF SDK -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  
+  <!-- vConsole (Mobile Debugger) -->
+  <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+  <script>
+    // Initialize vConsole
+    var vConsole = new VConsole();
+  </script>
 
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -280,6 +287,37 @@
     const useAppContext = () => useContext(AppContext);
 
     // --- Components ---
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true };
+      }
+      componentDidCatch(error, errorInfo) {
+        this.setState({ error, errorInfo });
+        console.error("React Error Boundary caught an error", error, errorInfo);
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-red-50 text-red-800">
+              <h1 className="text-2xl font-bold mb-4">發生錯誤 (Error)</h1>
+              <p className="mb-2">很抱歉，應用程式發生了意外錯誤。</p>
+              <pre className="bg-white p-4 rounded shadow text-xs overflow-auto w-full max-w-md mb-4">
+                {this.state.error && this.state.error.toString()}
+                <br />
+                {this.state.errorInfo && this.state.errorInfo.componentStack}
+              </pre>
+              <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-full font-bold shadow-lg">重新載入</button>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
     const ProductCard = ({ product }) => (
       <Link to={`/product/${product.id}`} className="block bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg transition-all group relative">
         <div className="aspect-square w-full bg-gray-100 relative overflow-hidden">
@@ -674,18 +712,20 @@
     };
 
     const App = () => (
-      <AppProvider>
-        <HashRouter>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/instructions" element={<Instructions />} />
-            <Route path="/redeem" element={<Redeem />} />
-          </Routes>
-        </HashRouter>
-      </AppProvider>
+      <ErrorBoundary>
+        <AppProvider>
+          <HashRouter>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/instructions" element={<Instructions />} />
+              <Route path="/redeem" element={<Redeem />} />
+            </Routes>
+          </HashRouter>
+        </AppProvider>
+      </ErrorBoundary>
     );
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
