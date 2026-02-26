@@ -284,8 +284,8 @@
 
       if (isLoading) {
         return (
-          <div className="min-h-screen flex flex-col items-center justify-center bg-yellow-50 text-orange-500">
-            <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+          <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-lime-600">
+            <div className="w-12 h-12 border-4 border-lime-200 border-t-lime-600 rounded-full animate-spin mb-4"></div>
             <div className="font-bold text-lg">美好正在發生...</div>
             <div className="text-sm text-gray-400 mt-2">Loading...</div>
           </div>
@@ -449,54 +449,53 @@
           <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm">庫存: {product.stock}</div>
         </div>
         <div className="p-3">
-          <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-orange-600">{product.name}</h3>
+          <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-lime-600">{product.name}</h3>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-lg font-black text-orange-600">NT${product.price}</span>
+            <span className="text-lg font-black text-lime-600">NT${product.price}</span>
             {product.originalPrice && <span className="text-xs text-gray-400 line-through">NT${product.originalPrice}</span>}
           </div>
         </div>
       </Link>
     );
 
-    const BottomNav = () => {
+    const BottomNav = ({ active }) => {
       const { cart } = useAppContext();
-      const loc = useLocation();
-      const [isOpen, setIsOpen] = useState(false);
+      const navigate = useNavigate();
       const count = cart.reduce((a, c) => a + c.quantity, 0);
-      const items = [
-        { path: '/', icon: Icons.Home, label: '首頁' },
-        { path: '/instructions', icon: Icons.HelpCircle, label: '說明' },
-        { path: '/cart', icon: Icons.ShoppingCart, label: '購物車', badge: count },
-        { path: '/profile', icon: Icons.User, label: '會員' },
+
+      const navItems = [
+        { id: 'home', icon: Icons.Home, label: '首頁', path: '/' },
+        { id: 'cart', icon: Icons.ShoppingCart, label: '購物車', path: '/cart', badge: count },
+        { id: 'profile', icon: Icons.User, label: '會員中心', path: '/profile' },
       ];
+
       return (
-        <>
-          {isOpen && <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setIsOpen(false)} />}
-          {isOpen && (
-            <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-2xl p-6 pb-24 shadow-lg">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icons.Menu size={20} className="text-orange-500" /> 更多功能</h3>
-              <a href="https://www.facebook.com/Goodieshut" target="_blank" className="flex flex-col items-center gap-2 text-gray-600">
-                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600"><Icons.Facebook size={28} /></div>
-                <span className="text-xs font-bold">粉絲專頁</span>
-              </a>
-            </div>
-          )}
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-1 flex justify-between items-center z-50 pb-safe shadow-lg">
-            {items.map(i => (
-              <Link key={i.path} to={i.path} className={`flex flex-col items-center justify-center w-full py-2 relative ${loc.pathname === i.path ? 'text-orange-500' : 'text-gray-400'}`}>
-                <div className="relative">
-                  <i.icon size={24} strokeWidth={loc.pathname === i.path ? 2.5 : 2} />
-                  {i.badge > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">{i.badge}</span>}
-                </div>
-                <span className="text-[10px] font-bold mt-1">{i.label}</span>
-              </Link>
-            ))}
-            <button onClick={() => setIsOpen(!isOpen)} className={`flex flex-col items-center justify-center w-full py-2 ${isOpen ? 'text-orange-500' : 'text-gray-400'}`}>
-              <Icons.Menu size={24} strokeWidth={isOpen ? 2.5 : 2} />
-              <span className="text-[10px] font-bold mt-1">選單</span>
-            </button>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-2 pb-safe z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-3xl">
+          <div className="flex justify-between items-center max-w-md mx-auto">
+            {navItems.map(item => {
+              const isActive = active === item.id || (item.path === '/' && !active);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(item.path)}
+                  className={`relative flex flex-col items-center justify-center w-16 h-16 transition-all duration-300 ${isActive ? '-mt-6' : ''}`}
+                >
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm ${isActive ? 'bg-lime-500 text-white scale-110 shadow-lime-200 shadow-lg' : 'bg-transparent text-gray-400'}`}>
+                    <item.icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
+                  </div>
+                  {item.badge > 0 && (
+                    <span className="absolute top-0 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm">
+                      {item.badge}
+                    </span>
+                  )}
+                  <span className={`text-[10px] font-bold mt-1 transition-opacity ${isActive ? 'text-lime-600 opacity-100' : 'text-gray-400 opacity-0'}`}>
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </>
+        </div>
       );
     };
 
@@ -516,194 +515,420 @@
       const gridClass = (l) => l==='xl'?'grid-cols-1':l==='lg'?'grid-cols-2':l==='md'?'grid-cols-3':l==='sm'?'grid-cols-4':'grid-cols-2';
 
       return (
-        <div className="min-h-screen bg-yellow-50 pb-20 font-sans">
-          <div className="bg-white shadow-sm sticky top-0 z-40">
-            {settings?.marqueeText && <div className="bg-orange-500 text-white text-xs py-1 overflow-hidden whitespace-nowrap"><div className="animate-marquee inline-block px-4">{settings.marqueeText}</div></div>}
-            <div className="px-4 py-3 flex justify-between items-center">
-              <h1 className="font-black text-lg text-gray-800">{settings?.storeName}</h1>
-              <Link to="/cart" className="text-gray-600"><Icons.ShoppingCart size={24} /></Link>
+        <div className="min-h-screen bg-gray-50 pb-24 font-sans">
+          {/* Header */}
+          <div className="bg-lime-500 text-white sticky top-0 z-40 shadow-md rounded-b-3xl">
+            {settings?.marqueeText && (
+              <div className="bg-lime-700 text-white text-xs py-1 overflow-hidden whitespace-nowrap">
+                <div className="animate-marquee inline-block px-4">{settings.marqueeText}</div>
+              </div>
+            )}
+            <div className="px-5 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-lime-600 font-bold">
+                  <Icons.Zap size={20} fill="currentColor" />
+                </div>
+                <h1 className="font-black text-xl tracking-wide">{settings?.storeName || '羽球專賣店'}</h1>
+              </div>
+              <Link to="/cart" className="relative p-2">
+                <Icons.ShoppingCart size={24} />
+              </Link>
+            </div>
+            
+            {/* Categories */}
+            <div className="px-4 pb-4 overflow-x-auto no-scrollbar flex gap-2">
+              <button 
+                onClick={() => setActiveCat('all')} 
+                className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all ${activeCat === 'all' ? 'bg-white text-lime-600 shadow-sm' : 'bg-lime-600/50 text-white hover:bg-lime-600'}`}
+              >
+                全部商品
+              </button>
+              {cats.map(c => (
+                <button 
+                  key={c.id} 
+                  onClick={() => setActiveCat(c.id)} 
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all ${activeCat === c.id ? 'bg-white text-lime-600 shadow-sm' : 'bg-lime-600/50 text-white hover:bg-lime-600'}`}
+                >
+                  {c.name}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="bg-white py-3 border-b border-gray-100 sticky top-[80px] z-30 overflow-x-auto no-scrollbar">
-            <div className="flex px-4 gap-3 min-w-max">
-              <button onClick={() => setActiveCat('all')} className={`px-4 py-1.5 rounded-full text-sm font-bold ${activeCat === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}>全部商品</button>
-              {cats.map(c => <button key={c.id} onClick={() => setActiveCat(c.id)} className={`px-4 py-1.5 rounded-full text-sm font-bold ${activeCat === c.id ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}>{c.name}</button>)}
-            </div>
-          </div>
+
+          {/* Product Grid */}
           <div className="p-4">
             <div className={`grid gap-4 ${gridClass(settings?.productLayout)}`}>
               {filtered.map(p => <ProductCard key={p.id} product={p} />)}
             </div>
           </div>
-          <BottomNav />
+          
+          <BottomNav active="home" />
         </div>
       );
     };
 
     const Instructions = () => (
-      <div className="min-h-screen bg-yellow-50 pb-20 font-sans">
-        <div className="bg-orange-500 text-white p-6 shadow-lg rounded-b-3xl mb-6">
-          <h1 className="text-2xl font-bold text-center">購買說明</h1>
+      <div className="min-h-screen bg-gray-50 pb-24 font-sans">
+        <div className="bg-lime-500 text-white p-6 pb-10 rounded-b-[3rem] shadow-lg mb-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10"></div>
+          <h1 className="text-2xl font-bold text-center relative z-10">購買說明</h1>
         </div>
-        <div className="px-4 space-y-6">
-          <div className="bg-white p-5 rounded-2xl shadow-md border-l-4 border-purple-400">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Icons.ShoppingBag size={24} className="text-purple-600"/> 購物流程</h2>
-            <div className="space-y-4 relative before:absolute before:left-5 before:h-full before:w-0.5 before:bg-gray-200">
+        
+        <div className="px-4 space-y-6 -mt-12 relative z-20">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                <Icons.ShoppingBag size={18}/>
+              </div>
+              購物流程
+            </h2>
+            <div className="space-y-6 relative before:absolute before:left-[19px] before:top-2 before:h-[85%] before:w-0.5 before:bg-gray-100">
               {['選購商品', '確認購物車', '填寫資料', '完成訂單'].map((step, i) => (
                 <div key={i} className="relative flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold z-10 border-4 border-white shadow">{i+1}</div>
-                  <div className="bg-gray-50 p-3 rounded-lg flex-1"><h3 className="font-bold text-sm">{step}</h3></div>
+                  <div className="w-10 h-10 rounded-full bg-white text-lime-600 flex items-center justify-center font-bold z-10 border-4 border-lime-100 shadow-sm text-sm">{i+1}</div>
+                  <div className="bg-gray-50 p-3 rounded-xl flex-1 border border-gray-100">
+                    <h3 className="font-bold text-sm text-gray-700">{step}</h3>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="bg-white p-5 rounded-2xl shadow-md border-l-4 border-blue-400">
-            <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><Icons.CreditCard size={24} className="text-blue-600"/> 付款方式</h2>
-            <ul className="list-disc pl-5 text-sm text-gray-600 space-y-2">
-              <li>貨到付款：取貨時再付款。</li>
-              <li>店取付款：至實體門市取貨時付款。</li>
-            </ul>
+
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <Icons.CreditCard size={18}/>
+              </div>
+              付款方式
+            </h2>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
+                <Icons.Truck className="w-5 h-5 text-blue-500 mt-0.5" />
+                <div>
+                  <div className="font-bold text-sm text-gray-800">貨到付款</div>
+                  <div className="text-xs text-gray-500">取貨時再付款給物流人員</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
+                <Icons.Store className="w-5 h-5 text-orange-500 mt-0.5" />
+                <div>
+                  <div className="font-bold text-sm text-gray-800">店取付款</div>
+                  <div className="text-xs text-gray-500">至實體門市取貨時付款</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <BottomNav />
+        <BottomNav active="profile" />
       </div>
     );
 
     const Cart = () => {
-      const { cart, updateQuantity, clearCart, cartTotal, shippingFee, isFreeShipping, user, setUser, pointsUsed } = useAppContext();
+      const { cart, updateQuantity, clearCart, cartTotal, user, settings, shippingFee, isFreeShipping, pointsUsed } = useAppContext();
       const navigate = useNavigate();
-      const [payMethod, setPayMethod] = useState('貨到付款');
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const [deliveryMethod, setDeliveryMethod] = useState('shipping'); // shipping, pickup
       const [formData, setFormData] = useState({ name: user?.name||'', phone: user?.phone||'', address: user?.address||'' });
-      
+
+      const total = cartTotal + (deliveryMethod === 'shipping' ? (isFreeShipping ? 0 : shippingFee) : 0);
+
       const handleSubmit = async (e) => {
         e.preventDefault();
-        if(cart.length===0) return;
-
-        // 1. 產生訂單編號 (日期+時間+隨機碼)
+        if (cart.length === 0) return;
+        if (!user || !user.phone) {
+          alert('請先至會員中心填寫手機號碼');
+          navigate('/profile');
+          return;
+        }
+        
+        setIsSubmitting(true);
         const orderId = generateOrderId();
-        const totalAmount = cartTotal + shippingFee;
-
-        // 2. 準備訂單資料
-        const orderData = { 
+        const order = {
           orderId,
-          ...formData, 
-          payMethod, 
-          items: cart, 
-          total: totalAmount, 
-          pointsUsed 
+          user: {
+            lineId: user.lineId,
+            name: formData.name || user.name,
+            phone: formData.phone || user.phone,
+            address: formData.address
+          },
+          items: cart,
+          total,
+          pointsUsed,
+          deliveryMethod,
+          shippingFee: deliveryMethod === 'shipping' ? (isFreeShipping ? 0 : shippingFee) : 0,
+          status: 'Pending',
+          createdAt: new Date().toISOString()
         };
 
         try {
-          // 3. 送出訂單到 GAS
-          await api.submitOrder(orderData);
+          // 1. Submit to GAS
+          await api.submitOrder(order);
           
-          // 4. 準備 LIFF 訊息內容
-          let messageText = `新訂單通知！\n訂單編號：${orderId}\n----------------\n商品：\n`;
-          cart.forEach((item, index) => {
-            const priceInfo = item.isRedemption ? `${item.redeemPoints}點` : `NT$${item.price}`;
-            messageText += `${index + 1}. ${item.name} (${item.selectedVariant || '單一規格'}) x ${item.quantity} (${priceInfo})\n`;
-          });
-          messageText += `----------------\n總金額：NT$${totalAmount}\n運費：NT$${shippingFee}\n付款方式：${payMethod}\n收件人：${formData.name}\n電話：${formData.phone}\n地址：${formData.address}`;
-          
-          if (pointsUsed > 0) {
-            messageText += `\n已折抵點數：${pointsUsed}點`;
-          }
-
-          // 5. 透過 LIFF 發送訊息 (僅在 LINE 內有效)
+          // 2. Send LIFF Message
           if (typeof liff !== 'undefined' && liff.isInClient()) {
-             try {
-               await liff.sendMessages([{ type: 'text', text: messageText }]);
-             } catch (liffErr) {
-               console.error('LIFF sendMessages failed', liffErr);
-               // 不阻擋訂單完成流程
-             }
+            await liff.sendMessages([{
+              type: 'text',
+              text: `感謝您的訂購！\n訂單編號: ${orderId}\n總金額: $${total}\n取貨方式: ${deliveryMethod === 'pickup' ? '店面取貨' : '宅配'}\n我們會盡快為您處理。`
+            }]);
           }
 
-          alert('訂單已成功送出！');
-          setUser({ ...user, ...formData }); 
-          clearCart(); // 清空購物車
-          navigate('/profile');
-        } catch (err) {
-          console.error(err);
-          alert('訂單送出失敗，請稍後再試。');
+          alert('訂單已送出！');
+          clearCart();
+          navigate('/');
+        } catch (e) {
+          console.error(e);
+          alert('訂單送出失敗，請重試');
+        } finally {
+          setIsSubmitting(false);
         }
       };
 
-      if(cart.length===0) return <div className="min-h-screen flex flex-col items-center justify-center bg-yellow-50"><Icons.ShoppingCart size={48} className="text-orange-300 mb-4"/><p>購物車是空的</p><Link to="/" className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-full">去逛逛</Link></div>;
+      if (cart.length === 0) return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+          <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4 text-gray-400">
+            <Icons.ShoppingCart className="w-10 h-10" />
+          </div>
+          <p className="text-gray-500 mb-6">購物車是空的</p>
+          <Link to="/" className="bg-lime-600 text-white px-8 py-3 rounded-full font-bold shadow-lg">去逛逛</Link>
+          <BottomNav active="cart" />
+        </div>
+      );
 
       return (
-        <div className="min-h-screen bg-yellow-50 pb-24 font-sans">
-          <div className="bg-white p-4 sticky top-0 shadow-sm z-50 flex items-center gap-3"><button onClick={()=>navigate(-1)}><Icons.ArrowLeft/></button><h1 className="font-bold">購物車</h1></div>
+        <div className="min-h-screen bg-gray-50 pb-32">
+          <div className="bg-white p-4 sticky top-0 z-10 shadow-sm text-center font-bold text-lg">購物車</div>
+          
           <div className="p-4 space-y-4">
-            {cart.map(i => (
-              <div key={i.id+i.selectedVariant} className="bg-white p-3 rounded-xl shadow-sm flex gap-3">
-                <img src={i.images?.[0]} className="w-20 h-20 rounded-lg object-cover bg-gray-100" referrerPolicy="no-referrer" />
-                <div className="flex-1">
-                  <div className="flex justify-between"><h3 className="font-bold text-sm line-clamp-1">{i.name}</h3><button onClick={()=>updateQuantity(i.id,0,i.selectedVariant,i.isRedemption)}><Icons.Trash2 size={16} className="text-gray-400"/></button></div>
-                  <p className="text-xs text-gray-500">{i.selectedVariant}</p>
-                  <div className="flex justify-between items-end mt-2">
-                    <span className="text-orange-600 font-bold">{i.isRedemption ? `${i.redeemPoints} 點` : `NT$${i.price}`}</span>
-                    <div className="flex items-center border rounded-full h-8"><button onClick={()=>updateQuantity(i.id,i.quantity-1,i.selectedVariant,i.isRedemption)} className="px-2"><Icons.Minus size={14}/></button><span className="px-2 text-xs">{i.quantity}</span><button onClick={()=>updateQuantity(i.id,i.quantity+1,i.selectedVariant,i.isRedemption)} className="px-2"><Icons.Plus size={14}/></button></div>
+            {cart.map((item, idx) => (
+              <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm flex gap-4">
+                <img src={item.images[0]} className="w-20 h-20 rounded-lg object-cover bg-gray-100" referrerPolicy="no-referrer" />
+                <div className="flex-1 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-gray-800 line-clamp-1">{item.name}</h3>
+                    <div className="text-xs text-gray-500 mt-1">{item.selectedVariant} {item.isRedemption && <span className="text-red-500 font-bold">(兌換品)</span>}</div>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div className="font-bold text-lime-600">
+                      {item.isRedemption ? `${item.redeemPoints} 點` : `NT$${item.price}`}
+                    </div>
+                    <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
+                      <button onClick={() => updateQuantity(item.id, item.quantity - 1, item.selectedVariant, item.isRedemption)} className="p-1"><Icons.Minus className="w-4 h-4" /></button>
+                      <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, item.quantity + 1, item.selectedVariant, item.isRedemption)} className="p-1"><Icons.Plus className="w-4 h-4" /></button>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="bg-white p-4 rounded-xl shadow-sm space-y-3">
-                <h3 className="font-bold text-sm">收件資訊</h3>
-                <input placeholder="姓名" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} className="w-full bg-gray-50 p-2 rounded" required />
-                <input placeholder="電話" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} className="w-full bg-gray-50 p-2 rounded" required />
-                <input placeholder="地址" value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} className="w-full bg-gray-50 p-2 rounded" required />
-                <select value={payMethod} onChange={e=>setPayMethod(e.target.value)} className="w-full bg-gray-50 p-2 rounded">
-                  <option value="貨到付款">貨到付款</option>
-                  <option value="店取付款">店取付款</option>
-                </select>
+
+            {/* 取貨方式 */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+              <h3 className="font-bold text-gray-800">取貨方式</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setDeliveryMethod('shipping')}
+                  className={`p-3 rounded-xl border text-center font-bold transition-all ${
+                    deliveryMethod === 'shipping' ? 'border-lime-500 bg-lime-50 text-lime-700' : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  <Icons.Truck className="w-5 h-5 mx-auto mb-1" />
+                  宅配寄送
+                </button>
+                <button 
+                  onClick={() => setDeliveryMethod('pickup')}
+                  className={`p-3 rounded-xl border text-center font-bold transition-all ${
+                    deliveryMethod === 'pickup' ? 'border-lime-500 bg-lime-50 text-lime-700' : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  <Icons.ShoppingBag className="w-5 h-5 mx-auto mb-1" />
+                  店面取貨
+                </button>
               </div>
-              <div className="fixed bottom-0 left-0 right-0 bg-white p-4 border-t z-50">
-                <button type="submit" className="w-full bg-orange-500 text-white py-3 rounded-full font-bold shadow-lg">確認結帳 (NT${cartTotal + shippingFee})</button>
-              </div>
+              
+              {deliveryMethod === 'pickup' && (
+                <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600">
+                  <div className="font-bold mb-1">取貨資訊：</div>
+                  <div>{settings?.storeName}</div>
+                  <div>地址：{settings?.storeAddress || '高雄市羽球路1號'}</div>
+                  <div>電話：{settings?.storePhone || '0912345678'}</div>
+                  <div className="text-xs text-gray-400 mt-1">*請出示訂單畫面取貨</div>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit} className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+               <h3 className="font-bold text-sm">收件資訊</h3>
+               <input placeholder="姓名" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} className="w-full bg-gray-50 p-2 rounded" required />
+               <input placeholder="電話" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} className="w-full bg-gray-50 p-2 rounded" required />
+               {deliveryMethod === 'shipping' && (
+                 <input placeholder="地址" value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} className="w-full bg-gray-50 p-2 rounded" required />
+               )}
             </form>
+
+            <div className="bg-white p-4 rounded-2xl shadow-sm space-y-2">
+              <div className="flex justify-between text-gray-600">
+                <span>小計</span>
+                <span>NT${cartTotal}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>運費</span>
+                <span>{deliveryMethod === 'pickup' ? '免運費' : (isFreeShipping ? '免運費' : `NT$${shippingFee}`)}</span>
+              </div>
+              {pointsUsed > 0 && (
+                <div className="flex justify-between text-lime-600">
+                  <span>扣除點數</span>
+                  <span>-{pointsUsed} 點</span>
+                </div>
+              )}
+              <div className="border-t pt-2 flex justify-between font-bold text-lg text-gray-800">
+                <span>總金額</span>
+                <span>NT${total}</span>
+              </div>
+            </div>
           </div>
+
+          <div className="fixed bottom-20 left-4 right-4 z-20">
+            <button 
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="w-full bg-lime-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-lime-200 active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? '處理中...' : '確認結帳'}
+            </button>
+          </div>
+
+          <BottomNav active="cart" />
         </div>
       );
     };
 
     const Profile = () => {
       const { user, updateUserProfile } = useAppContext();
-      const [wishlist, setWishlist] = useState(user?.wishlist || '');
-      
+      const [isEditing, setIsEditing] = useState(false);
+      const [formData, setFormData] = useState({});
+
+      useEffect(() => {
+        if (user) setFormData(user);
+      }, [user]);
+
       const handleSave = () => {
-        updateUserProfile({ wishlist });
-        alert('儲存成功');
+        if (!formData.phone || formData.phone.length !== 10 || !formData.phone.startsWith('09')) {
+          alert('請輸入正確的 10 碼手機號碼 (09開頭)');
+          return;
+        }
+        if (!formData.birthday) {
+          alert('請輸入生日');
+          return;
+        }
+        updateUserProfile(formData);
+        setIsEditing(false);
+        alert('會員資料已更新');
       };
 
-      if (!user) return <div>Loading...</div>;
+      if (!user) return null;
+
+      // 檢查是否為管理員
+      const isAdmin = user.lineId === 'Ua66fd77f72e4524075afd856cae91587';
+      // 檢查是否需要註冊 (無手機或生日)
+      const needsRegistration = !user.phone || !user.birthday;
 
       return (
-        <div className="min-h-screen bg-yellow-50 pb-20 font-sans">
-          <div className="bg-orange-500 text-white p-8 rounded-b-3xl mb-6 text-center">
-            {user.pictureUrl ? <img src={user.pictureUrl} className="w-20 h-20 rounded-full mx-auto mb-3 border-4 border-white" /> : <div className="w-20 h-20 bg-white rounded-full mx-auto mb-3 flex items-center justify-center text-orange-500 font-bold text-2xl">{user.name?.[0]}</div>}
-            <h1 className="text-xl font-bold">{user.name}</h1>
-            <p className="opacity-80">點數: {user.points}</p>
-          </div>
-          <div className="px-4 space-y-4">
-            <Link to="/redeem" className="block bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border border-orange-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-100 p-2 rounded-full text-orange-500"><Icons.Gift size={24}/></div>
-                <span className="font-bold text-gray-800">點數兌換專區</span>
+        <div className="min-h-screen bg-gray-50 pb-24">
+          <div className="bg-lime-600 p-8 pb-16 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-10 -mb-10"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <img src={user.pictureUrl || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-full border-4 border-white/30 shadow-md" referrerPolicy="no-referrer" />
+              <div className="text-white">
+                <h2 className="text-xl font-bold">{user.name}</h2>
+                <div className="text-lime-100 text-sm mt-1">
+                  {needsRegistration ? '尚未成為正式會員' : '正式會員'}
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-gray-400">
-                <span className="text-xs">查看可兌換商品</span>
-                <Icons.ArrowLeft className="rotate-180" size={16}/>
-              </div>
-            </Link>
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-              <h3 className="font-bold mb-2">許願池</h3>
-              <textarea value={wishlist} onChange={e=>setWishlist(e.target.value)} className="w-full bg-gray-50 p-2 rounded h-24" placeholder="希望未來提供什麼產品或服務？"></textarea>
-              <button onClick={handleSave} className="mt-2 bg-orange-500 text-white px-4 py-1 rounded text-sm">儲存</button>
             </div>
           </div>
-          <BottomNav />
+
+          <div className="px-4 -mt-10 relative z-20 space-y-4">
+            {/* 點數卡 */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-gray-500 font-medium">現有點數</span>
+                <Link to="/redeem" className="text-lime-600 text-sm font-bold flex items-center gap-1">
+                  點數兌換專區 <Icons.ArrowLeft className="w-4 h-4 rotate-180" />
+                </Link>
+              </div>
+              <div className="text-4xl font-bold text-gray-800">{user.points || 0} <span className="text-sm text-gray-400 font-normal">pts</span></div>
+            </div>
+
+            {/* 註冊/編輯資料區塊 */}
+            {(needsRegistration || isEditing) ? (
+              <div className="bg-white p-6 rounded-2xl shadow-sm border-2 border-lime-100 animate-pulse-once">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Icons.User className="w-5 h-5 text-lime-600" />
+                  {needsRegistration ? '加入會員 (領取生日禮)' : '編輯資料'}
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">手機號碼 (09xxxxxxxx)</label>
+                    <input 
+                      type="tel" 
+                      value={formData.phone || ''} 
+                      onChange={e => setFormData({...formData, phone: e.target.value})}
+                      className="w-full p-2 border rounded-lg bg-gray-50"
+                      placeholder="0912345678"
+                      maxLength="10"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">生日</label>
+                    <input 
+                      type="date" 
+                      value={formData.birthday || ''} 
+                      onChange={e => setFormData({...formData, birthday: e.target.value})}
+                      className="w-full p-2 border rounded-lg bg-gray-50"
+                    />
+                    <p className="text-xs text-lime-600 mt-1">*填寫生日可獲得專屬生日禮</p>
+                  </div>
+                  <button onClick={handleSave} className="w-full bg-lime-600 text-white py-2 rounded-lg font-bold shadow-md mt-2">
+                    確認送出
+                  </button>
+                  {isEditing && !needsRegistration && (
+                    <button onClick={() => setIsEditing(false)} className="w-full text-gray-400 text-sm mt-2">取消</button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+                <div>
+                  <div className="text-sm text-gray-500">手機</div>
+                  <div className="font-bold text-gray-800">{user.phone}</div>
+                </div>
+                <button onClick={() => setIsEditing(true)} className="text-gray-400 p-2"><Icons.Settings2 className="w-5 h-5" /></button>
+              </div>
+            )}
+
+            {/* 管理員入口 */}
+            {isAdmin && (
+              <Link to="/admin" className="block bg-gray-800 text-white p-4 rounded-2xl shadow-lg flex justify-between items-center">
+                <span className="font-bold">管理員後台</span>
+                <Icons.ArrowLeft className="w-5 h-5 rotate-180" />
+              </Link>
+            )}
+
+            <div className="space-y-2">
+              <h3 className="font-bold text-gray-800 ml-1">功能選單</h3>
+              <Link to="/instructions" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+                <span className="text-gray-600">購物說明</span>
+                <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
+              </Link>
+              <a href="https://line.me/R/ti/p/@goodthings" target="_blank" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+                <span className="text-gray-600">聯絡客服</span>
+                <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
+              </a>
+            </div>
+          </div>
+
+          <BottomNav active="profile" />
         </div>
       );
     };
@@ -713,23 +938,33 @@
       const navigate = useNavigate();
       
       return (
-        <div className="min-h-screen bg-yellow-50 pb-20 font-sans">
+        <div className="min-h-screen bg-gray-50 pb-24 font-sans">
           <div className="bg-white p-4 sticky top-0 shadow-sm z-50 flex items-center gap-3">
             <button onClick={()=>navigate(-1)}><Icons.ArrowLeft/></button>
             <h1 className="font-bold text-lg">點數兌換專區</h1>
           </div>
           <div className="p-4">
-            <div className="bg-orange-500 text-white p-4 rounded-xl mb-4 flex justify-between items-center shadow-md">
-              <span className="font-bold">目前持有點數</span>
-              <span className="text-2xl font-black">{user?.points || 0} P</span>
+            <div className="bg-gradient-to-r from-lime-500 to-lime-600 text-white p-6 rounded-2xl mb-6 flex justify-between items-center shadow-lg shadow-lime-200">
+              <div>
+                <div className="text-lime-100 text-sm font-medium mb-1">目前持有點數</div>
+                <span className="text-3xl font-black">{user?.points || 0}</span> <span className="text-sm opacity-80">pts</span>
+              </div>
+              <div className="bg-white/20 p-3 rounded-full">
+                <Icons.Gift size={32} className="text-white" />
+              </div>
             </div>
             
             {redeemableProducts.length === 0 ? (
-              <div className="text-center text-gray-500 py-10">目前沒有可兌換的商品</div>
+              <div className="text-center text-gray-500 py-10">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icons.Gift className="w-8 h-8 text-gray-400" />
+                </div>
+                目前沒有可兌換的商品
+              </div>
             ) : (
               <div className="grid gap-4">
                 {redeemableProducts.map(p => (
-                  <div key={p.id} className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
+                  <div key={p.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col border border-gray-100">
                     <div className="aspect-video w-full bg-gray-100 relative">
                       <img src={p.images?.[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">庫存: {p.stock}</div>
@@ -739,8 +974,8 @@
                         <h3 className="font-bold text-gray-800 mb-1">{p.name}</h3>
                         <p className="text-xs text-gray-500 line-clamp-2 mb-3">{p.description}</p>
                       </div>
-                      <div className="flex justify-between items-center mt-2 border-t pt-3">
-                        <span className="text-orange-600 font-black text-lg">{p.redeemPoints} 點</span>
+                      <div className="flex justify-between items-center mt-2 border-t border-gray-100 pt-3">
+                        <span className="text-lime-600 font-black text-lg">{p.redeemPoints} 點</span>
                         <button 
                           onClick={()=>{ 
                             if((user?.points||0) < p.redeemPoints) {
@@ -752,7 +987,7 @@
                               }
                             }
                           }} 
-                          className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${ (user?.points||0) >= p.redeemPoints ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                          className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm transition-all ${ (user?.points||0) >= p.redeemPoints ? 'bg-lime-500 text-white hover:bg-lime-600 shadow-lime-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                         >
                           立即兌換
                         </button>
@@ -774,8 +1009,7 @@
       const [product, setProduct] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
-      const [imgIdx, setImgIdx] = useState(0);
-      const [variant, setVariant] = useState('');
+      const [selectedVariant, setSelectedVariant] = useState(null);
 
       useEffect(() => {
         setLoading(true);
@@ -785,11 +1019,10 @@
             setLoading(false);
             return;
           }
-          // 確保 ID 比對時類型一致 (轉為字串)
           const found = p.find(x => String(x.id) === String(id));
           if (found) { 
             setProduct(found); 
-            if(found.variants?.[0]) setVariant(found.variants[0]); 
+            if(found.variants?.[0]) setSelectedVariant(found.variants[0]); 
           } else {
             setError('找不到此商品');
           }
@@ -802,33 +1035,96 @@
       }, [id]);
 
       if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-      if (error || !product) return <div className="min-h-screen flex flex-col items-center justify-center"><p className="text-red-500 mb-4">{error || '商品不存在'}</p><button onClick={()=>navigate('/')} className="bg-orange-500 text-white px-4 py-2 rounded">回首頁</button></div>;
+      if (error || !product) return <div className="min-h-screen flex flex-col items-center justify-center"><p className="text-red-500 mb-4">{error || '商品不存在'}</p><button onClick={()=>navigate('/')} className="bg-lime-600 text-white px-4 py-2 rounded">回首頁</button></div>;
+
+      // 影片嵌入 helper
+      const getVideoEmbed = (url) => {
+        if (!url) return null;
+        let embedUrl = null;
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+          const videoId = url.split('v=')[1] || url.split('/').pop();
+          const cleanId = videoId.split('&')[0].split('?')[0];
+          embedUrl = `https://www.youtube.com/embed/${cleanId}`;
+        } else if (url.includes('facebook.com')) {
+           embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
+        }
+
+        if (embedUrl) {
+          return (
+            <div className="aspect-video w-full mt-4 rounded-xl overflow-hidden shadow-sm">
+              <iframe src={embedUrl} className="w-full h-full" frameBorder="0" allowFullScreen></iframe>
+            </div>
+          );
+        }
+        return (
+          <div className="mt-4 p-4 bg-gray-100 rounded-xl text-center">
+            <a href={url} target="_blank" className="text-blue-600 underline">點此觀看影片</a>
+          </div>
+        );
+      };
 
       return (
-        <div className="min-h-screen bg-yellow-50 pb-24">
-          <div className="relative bg-white">
-            <button onClick={()=>navigate(-1)} className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/30 rounded-full text-white flex items-center justify-center"><Icons.ArrowLeft/></button>
-            <div className="aspect-square">
-              <img src={product.images?.[imgIdx]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            </div>
+        <div className="min-h-screen bg-white pb-24">
+          <div className="relative">
+            <img src={product.images[0] || 'https://picsum.photos/400/400'} alt={product.name} className="w-full aspect-square object-cover" referrerPolicy="no-referrer" />
+            <button onClick={() => navigate(-1)} className="absolute top-4 left-4 bg-white/80 p-2 rounded-full shadow-lg backdrop-blur-sm">
+              <Icons.ArrowLeft className="w-6 h-6 text-gray-800" />
+            </button>
           </div>
-          <div className="bg-white p-5 mb-2 rounded-b-3xl shadow-sm">
-            <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
-            <p className="text-orange-600 text-3xl font-black">NT${product.price}</p>
-            {product.variants?.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm font-bold mb-2">{product.variantType || '規格'}</p>
-                <div className="flex gap-2">{product.variants.map(v => <button key={v} onClick={()=>setVariant(v)} className={`px-4 py-2 rounded border ${variant===v?'bg-orange-500 text-white':'bg-white'}`}>{v}</button>)}</div>
+
+          <div className="p-5 -mt-6 bg-white rounded-t-3xl relative z-10">
+            <div className="flex justify-between items-start mb-2">
+              <h1 className="text-2xl font-bold text-gray-800">{product.name}</h1>
+              <span className="bg-lime-100 text-lime-700 px-3 py-1 rounded-full text-xs font-bold">庫存: {product.stock}</span>
+            </div>
+            
+            <div className="flex items-baseline gap-2 mb-6">
+              <span className="text-3xl font-bold text-lime-600">NT${product.price}</span>
+              {product.originalPrice && <span className="text-gray-400 line-through text-sm">NT${product.originalPrice}</span>}
+            </div>
+
+            {product.variants && product.variants.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-bold text-gray-800 mb-3">{product.variantType || '規格'}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {product.variants.map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setSelectedVariant(v)}
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                        selectedVariant === v 
+                          ? 'border-lime-500 bg-lime-50 text-lime-700' 
+                          : 'border-gray-200 text-gray-600 hover:border-lime-200'
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
+
+            <div className="prose prose-sm text-gray-600 mb-8">
+              <h3 className="font-bold text-gray-800 mb-2">商品介紹</h3>
+              <p className="whitespace-pre-wrap">{product.description}</p>
+              {getVideoEmbed(product.videoUrl)}
+            </div>
           </div>
-          <div className="bg-white p-5 rounded-3xl shadow-sm mx-2 mb-20">
-            <h3 className="font-bold mb-2 border-l-4 border-orange-500 pl-2">商品詳情</h3>
-            <p className="text-gray-600 whitespace-pre-line">{product.description}</p>
-          </div>
-          <div className="fixed bottom-0 left-0 right-0 bg-white p-4 border-t flex gap-3 z-50">
-            <button onClick={()=>addToCart(product, 1, variant)} className="flex-1 bg-orange-100 text-orange-600 py-3 rounded-full font-bold">加入購物車</button>
-            <button onClick={()=>{addToCart(product, 1, variant); navigate('/cart');}} className="flex-1 bg-orange-500 text-white py-3 rounded-full font-bold">立即購買</button>
+
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex items-center gap-4 z-50 safe-area-bottom">
+             <button onClick={() => navigate('/')} className="p-3 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50">
+               <Icons.Home className="w-6 h-6" />
+             </button>
+             <button 
+               onClick={() => {
+                 addToCart(product, 1, selectedVariant);
+                 alert('已加入購物車');
+               }}
+               className="flex-1 bg-lime-600 text-white py-3 rounded-full font-bold shadow-lg shadow-lime-200 active:scale-95 transition-transform flex items-center justify-center gap-2"
+             >
+               <Icons.ShoppingCart className="w-5 h-5" />
+               加入購物車
+             </button>
           </div>
         </div>
       );
