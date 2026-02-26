@@ -526,15 +526,21 @@
             <p className="opacity-80">點數: {user.points}</p>
           </div>
           <div className="px-4 space-y-4">
+            <Link to="/redeem" className="block bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border border-orange-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-100 p-2 rounded-full text-orange-500"><Icons.Gift size={24}/></div>
+                <span className="font-bold text-gray-800">點數兌換專區</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-400">
+                <span className="text-xs">查看可兌換商品</span>
+                <Icons.ArrowLeft className="rotate-180" size={16}/>
+              </div>
+            </Link>
             <div className="bg-white p-4 rounded-xl shadow-sm">
               <h3 className="font-bold mb-2">許願池</h3>
               <textarea value={wishlist} onChange={e=>setWishlist(e.target.value)} className="w-full bg-gray-50 p-2 rounded h-24" placeholder="希望未來提供什麼產品或服務？"></textarea>
               <button onClick={handleSave} className="mt-2 bg-orange-500 text-white px-4 py-1 rounded text-sm">儲存</button>
             </div>
-            <Link to="/redeem" className="block bg-white p-4 rounded-xl shadow-sm flex justify-between items-center">
-              <span className="font-bold">點數兌換專區</span>
-              <Icons.Gift className="text-orange-500"/>
-            </Link>
           </div>
           <BottomNav />
         </div>
@@ -544,22 +550,57 @@
     const Redeem = () => {
       const { redeemableProducts, redeemItem, user } = useAppContext();
       const navigate = useNavigate();
+      
       return (
-        <div className="min-h-screen bg-yellow-50 pb-20">
-          <div className="bg-white p-4 sticky top-0 shadow-sm z-50 flex items-center gap-3"><button onClick={()=>navigate(-1)}><Icons.ArrowLeft/></button><h1 className="font-bold">兌換專區</h1></div>
-          <div className="p-4 grid gap-4">
-            {redeemableProducts.map(p => (
-              <div key={p.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <img src={p.images?.[0]} className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-bold">{p.name}</h3>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-green-600 font-bold">{p.redeemPoints} 點</span>
-                    <button onClick={()=>{ if(redeemItem(p)) alert('兌換成功'); else alert('點數不足'); }} className="bg-green-500 text-white px-4 py-1 rounded-full text-sm">兌換</button>
+        <div className="min-h-screen bg-yellow-50 pb-20 font-sans">
+          <div className="bg-white p-4 sticky top-0 shadow-sm z-50 flex items-center gap-3">
+            <button onClick={()=>navigate(-1)}><Icons.ArrowLeft/></button>
+            <h1 className="font-bold text-lg">點數兌換專區</h1>
+          </div>
+          <div className="p-4">
+            <div className="bg-orange-500 text-white p-4 rounded-xl mb-4 flex justify-between items-center shadow-md">
+              <span className="font-bold">目前持有點數</span>
+              <span className="text-2xl font-black">{user?.points || 0} P</span>
+            </div>
+            
+            {redeemableProducts.length === 0 ? (
+              <div className="text-center text-gray-500 py-10">目前沒有可兌換的商品</div>
+            ) : (
+              <div className="grid gap-4">
+                {redeemableProducts.map(p => (
+                  <div key={p.id} className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
+                    <div className="aspect-video w-full bg-gray-100 relative">
+                      <img src={p.images?.[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">庫存: {p.stock}</div>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-bold text-gray-800 mb-1">{p.name}</h3>
+                        <p className="text-xs text-gray-500 line-clamp-2 mb-3">{p.description}</p>
+                      </div>
+                      <div className="flex justify-between items-center mt-2 border-t pt-3">
+                        <span className="text-orange-600 font-black text-lg">{p.redeemPoints} 點</span>
+                        <button 
+                          onClick={()=>{ 
+                            if((user?.points||0) < p.redeemPoints) {
+                              alert('點數不足無法兌換');
+                            } else {
+                              if(confirm(`確定要使用 ${p.redeemPoints} 點兌換「${p.name}」嗎？`)) {
+                                if(redeemItem(p)) alert('兌換成功！請至櫃台出示兌換紀錄。'); 
+                                else alert('兌換失敗');
+                              }
+                            }
+                          }} 
+                          className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${ (user?.points||0) >= p.redeemPoints ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        >
+                          立即兌換
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </div>
       );
