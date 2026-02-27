@@ -157,6 +157,7 @@
     const Icons={
       Home:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
       ShoppingCart:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>,
+      BookOpen:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
       User:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
       Search:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
       Menu:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
@@ -418,12 +419,18 @@
       const { showAlert, showConfirm } = useDialog();
       const [orders, setOrders] = useState([]);
       const [redemptions, setRedemptions] = useState([]);
+      const [users, setUsers] = useState([]);
+      const [stats, setStats] = useState({ dailyTotal: 0, monthlyTotal: 0, grandTotal: 0 });
+      const [settings, setSettings] = useState({});
       const [loading, setLoading] = useState(true);
-      const [tab, setTab] = useState('orders'); // orders, redemptions
+      const [tab, setTab] = useState('dashboard'); // dashboard, orders, redemptions, users, settings
       const navigate = useNavigate();
 
+      // Admin IDs
+      const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13'];
+
       useEffect(() => {
-        if (!user || user.lineId !== 'Ua66fd77f72e4524075afd856cae91587') {
+        if (!user || !ADMIN_IDS.includes(user.lineId)) {
           navigate('/');
           return;
         }
@@ -433,18 +440,37 @@
       const fetchData = async () => {
         setLoading(true);
         try {
-          const [resOrders, resRedemptions] = await Promise.all([
-            api.get('getOrders', { adminId: user.lineId }),
-            api.get('getRedemptions', { adminId: user.lineId })
-          ]);
-          if (resOrders && !resOrders.error) setOrders(resOrders);
-          if (resRedemptions && !resRedemptions.error) setRedemptions(resRedemptions);
+          // Fetch data based on active tab to optimize
+          if (tab === 'dashboard') {
+             const resStats = await api.get('getAdminStats', { adminId: user.lineId });
+             if (resStats && !resStats.error) setStats(resStats);
+          } else if (tab === 'orders') {
+             const resOrders = await api.get('getOrders', { adminId: user.lineId });
+             if (resOrders && !resOrders.error) setOrders(resOrders);
+          } else if (tab === 'redemptions') {
+             const resRedemptions = await api.get('getRedemptions', { adminId: user.lineId });
+             if (resRedemptions && !resRedemptions.error) setRedemptions(resRedemptions);
+          } else if (tab === 'users') {
+             const resUsers = await api.get('getUsers', { adminId: user.lineId });
+             if (resUsers && !resUsers.error) setUsers(resUsers);
+          } else if (tab === 'settings') {
+             const resSettings = await api.get('getSettings');
+             if (resSettings && !resSettings.error) setSettings(resSettings);
+          }
         } catch (e) {
           console.error(e);
+          showAlert('資料載入失敗');
         } finally {
           setLoading(false);
         }
       };
+
+      // Re-fetch when tab changes
+      useEffect(() => {
+        if (user && ADMIN_IDS.includes(user.lineId)) {
+            fetchData();
+        }
+      }, [tab]);
 
       const updateStatus = async (orderId, newStatus) => {
         let notify = false;
@@ -528,14 +554,118 @@
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setTab('orders')} className={`flex-1 py-2 rounded-lg font-bold text-sm ${tab === 'orders' ? 'bg-white text-lime-600' : 'bg-lime-700 text-lime-100'}`}>訂單管理</button>
-              <button onClick={() => setTab('redemptions')} className={`flex-1 py-2 rounded-lg font-bold text-sm ${tab === 'redemptions' ? 'bg-white text-lime-600' : 'bg-lime-700 text-lime-100'}`}>兌換管理</button>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              <button onClick={() => setTab('dashboard')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${tab === 'dashboard' ? 'bg-white text-lime-600' : 'bg-lime-700 text-lime-100'}`}>總覽</button>
+              <button onClick={() => setTab('orders')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${tab === 'orders' ? 'bg-white text-lime-600' : 'bg-lime-700 text-lime-100'}`}>訂單</button>
+              <button onClick={() => setTab('redemptions')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${tab === 'redemptions' ? 'bg-white text-lime-600' : 'bg-lime-700 text-lime-100'}`}>兌換</button>
+              <button onClick={() => setTab('users')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${tab === 'users' ? 'bg-white text-lime-600' : 'bg-lime-700 text-lime-100'}`}>用戶</button>
+              <button onClick={() => setTab('settings')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${tab === 'settings' ? 'bg-white text-lime-600' : 'bg-lime-700 text-lime-100'}`}>設定</button>
             </div>
           </div>
           
           <div className="p-4 space-y-4">
-            {tab === 'orders' ? (
+            {tab === 'dashboard' && (
+              <div className="grid grid-cols-1 gap-4">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <h3 className="text-gray-500 font-bold mb-2">今日訂單金額</h3>
+                  <div className="text-3xl font-black text-lime-600">${stats.dailyTotal}</div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <h3 className="text-gray-500 font-bold mb-2">本月訂單金額</h3>
+                  <div className="text-3xl font-black text-blue-600">${stats.monthlyTotal}</div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <h3 className="text-gray-500 font-bold mb-2">總計訂單金額</h3>
+                  <div className="text-3xl font-black text-gray-800">${stats.grandTotal}</div>
+                </div>
+              </div>
+            )}
+
+            {tab === 'users' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-500 font-bold">
+                      <tr>
+                        <th className="p-3">姓名</th>
+                        <th className="p-3">電話</th>
+                        <th className="p-3">點數</th>
+                        <th className="p-3">註冊日</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {users.map((u, idx) => (
+                        <tr key={idx}>
+                          <td className="p-3">{u.name}</td>
+                          <td className="p-3">{u.phone}</td>
+                          <td className="p-3">{u.points}</td>
+                          <td className="p-3 text-xs text-gray-400">{new Date(u.registrationDate).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {tab === 'settings' && (
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <h3 className="font-bold text-lg mb-4">商店設定</h3>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">運費</label>
+                  <input 
+                    type="number" 
+                    value={settings.shippingFee || ''} 
+                    onChange={e => setSettings({...settings, shippingFee: e.target.value})}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">免運門檻</label>
+                  <input 
+                    type="number" 
+                    value={settings.freeShippingThreshold || ''} 
+                    onChange={e => setSettings({...settings, freeShippingThreshold: e.target.value})}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">點數累積金額 (多少元累積1點)</label>
+                  <input 
+                    type="number" 
+                    value={settings.pointRatio || ''} 
+                    onChange={e => setSettings({...settings, pointRatio: e.target.value})}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">跑馬燈文字</label>
+                  <input 
+                    type="text" 
+                    value={settings.marqueeText || ''} 
+                    onChange={e => setSettings({...settings, marqueeText: e.target.value})}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                </div>
+                <button 
+                  onClick={async () => {
+                    if (!await showConfirm('確定要更新設定嗎？')) return;
+                    try {
+                      await api.post('updateSettings', { settings });
+                      showAlert('設定已更新');
+                    } catch(e) {
+                      showAlert('更新失敗');
+                    }
+                  }}
+                  className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-lime-200 active:scale-95 transition-transform"
+                >
+                  儲存設定
+                </button>
+              </div>
+            )}
+
+            {tab === 'orders' && (
+              orders.length === 0 ? <div className="text-center text-gray-400 py-10">無資料</div> :
               orders.map(order => (
                 <div key={order.orderId} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                   <div className="flex justify-between items-start mb-2">
@@ -570,7 +700,10 @@
                   </div>
                 </div>
               ))
-            ) : (
+            )}
+
+            {tab === 'redemptions' && (
+              redemptions.length === 0 ? <div className="text-center text-gray-400 py-10">無資料</div> :
               redemptions.map(redemption => (
                 <div key={redemption.redemptionId} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                   <div className="flex justify-between items-start mb-2">
@@ -599,9 +732,6 @@
                   </div>
                 </div>
               ))
-            )}
-            {((tab === 'orders' && orders.length === 0) || (tab === 'redemptions' && redemptions.length === 0)) && (
-              <div className="text-center text-gray-400 py-10">無資料</div>
             )}
           </div>
         </div>
@@ -1257,18 +1387,27 @@ ${itemsText}
           <div className="px-4 -mt-10 relative z-20 space-y-4">
             {/* 每日抽獎按鈕 (左側浮動或置頂) */}
             <div className="flex gap-4">
-               <button 
-                 onClick={handleDailyLottery}
-                 disabled={!canDraw || isLotterySpinning}
-                 className={`flex-1 p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-2 transition-all ${
-                   canDraw 
-                     ? 'bg-gradient-to-br from-yellow-100 to-orange-100 text-orange-600 active:scale-95' 
-                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                 }`}
-               >
-                 <Icons.Gift className={`w-8 h-8 ${isLotterySpinning ? 'animate-spin' : ''}`} />
-                 <span className="font-bold text-sm">{canDraw ? '每日抽獎' : '今日已抽'}</span>
-               </button>
+               <div className="flex-1 flex flex-col gap-2">
+                 <button 
+                   onClick={handleDailyLottery}
+                   disabled={!canDraw || isLotterySpinning}
+                   className={`flex-1 p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-1 transition-all ${
+                     canDraw 
+                       ? 'bg-gradient-to-br from-yellow-100 to-orange-100 text-orange-600 active:scale-95' 
+                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                   }`}
+                 >
+                   <Icons.Gift className={`w-6 h-6 ${isLotterySpinning ? 'animate-spin' : ''}`} />
+                   <span className="font-bold text-xs">{canDraw ? '每日抽獎' : '今日已抽'}</span>
+                 </button>
+                 <Link 
+                   to="/instructions"
+                   className="flex-1 p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-1 bg-white text-lime-600 active:scale-95 transition-all"
+                 >
+                   <Icons.BookOpen className="w-6 h-6" />
+                   <span className="font-bold text-xs">購物說明</span>
+                 </Link>
+               </div>
                
                <div className="flex-[2] bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
                  <div className="flex justify-between items-center mb-2">
@@ -1429,10 +1568,6 @@ ${itemsText}
 
             <div className="space-y-2">
               <h3 className="font-bold text-gray-800 ml-1">功能選單</h3>
-              <Link to="/instructions" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
-                <span className="text-gray-600">購物說明</span>
-                <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
-              </Link>
               <a href="https://line.me/R/ti/p/@goodthings" target="_blank" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
                 <span className="text-gray-600">聯絡客服</span>
                 <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
