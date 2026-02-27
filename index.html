@@ -448,11 +448,34 @@
 
       const updateStatus = async (orderId, newStatus) => {
         let notify = false;
-        if (newStatus === 'Shipped') {
-           notify = await showConfirm(`是否發送 LINE 通知給用戶？`, `訂單 ${orderId} 出貨`);
-        }
         
-        if (!await showConfirm(`確定將訂單 ${orderId} 狀態改為 ${newStatus}?`)) return;
+        if (newStatus === 'Shipped') {
+          // 詢問是否推播
+          const choice = await new Promise((resolve) => {
+            setDialog({
+              isOpen: true,
+              type: 'confirm',
+              title: '訂單出貨通知',
+              message: `訂單 ${orderId} 準備出貨。\n是否發送 LINE 通知給用戶？`,
+              onConfirm: () => {
+                setDialog(prev => ({ ...prev, isOpen: false }));
+                resolve(true); // 自動推播
+              },
+              onCancel: () => {
+                setDialog(prev => ({ ...prev, isOpen: false }));
+                resolve(false); // 手動 (不推播)
+              }
+            });
+          });
+          notify = choice;
+        } else if (newStatus === 'Completed') {
+           // 完成訂單時，通常也會通知並發送點數
+           const confirm = await showConfirm(`確定完成訂單 ${orderId} 並發送點數？\n(將自動通知用戶)`, '完成訂單');
+           if (!confirm) return; 
+           notify = true;
+        } else {
+           if (!await showConfirm(`確定將訂單 ${orderId} 狀態改為 ${newStatus}?`)) return;
+        }
         
         try {
           await api.post('updateOrderStatus', { 
@@ -462,8 +485,14 @@
             notify: notify
           });
           showAlert('更新成功');
-          fetchData();
+          fetchData(); // Refresh list
+          
+          // Refresh orders list specifically if needed
+          const resOrders = await api.get('getOrders', { adminId: user.lineId });
+          if (resOrders && !resOrders.error) setOrders(resOrders);
+
         } catch (e) {
+          console.error(e);
           showAlert('更新失敗');
         }
       };
@@ -529,10 +558,14 @@
                   </div>
                   <div className="flex gap-2 mt-3">
                     {order.status === 'Pending' && (
-                      <button onClick={() => updateStatus(order.orderId, 'Shipped')} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm">通知出貨</button>
+                      <button onClick={() => updateStatus(order.orderId, 'Shipped')} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold shadow-sm active:scale-95 transition-transform">
+                        完成寄送 (通知)
+                      </button>
                     )}
                     {order.status === 'Shipped' && (
-                      <button onClick={() => updateStatus(order.orderId, 'Completed')} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm">完成訂單 (發點數)</button>
+                      <button onClick={() => updateStatus(order.orderId, 'Completed')} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-bold shadow-sm active:scale-95 transition-transform">
+                        完成訂單 (發點數)
+                      </button>
                     )}
                   </div>
                 </div>
@@ -894,12 +927,31 @@
           
           // 2. Send LIFF Message
           if (typeof liff !== 'undefined' && liff.isInClient()) {
-            const itemsText = cart.map(i => i.isRedemption ? `- [兌換] ${i.name} x${i.quantity}` : `- ${i.name} x${i.quantity} $${i.price}`).join('\n');
-            const deliveryText = deliveryMethod === 'pickup' ? '店面取貨' : deliveryMethod === 'cvs' ? `超商取貨 (${cvsType} ${formData.storeName})` : `宅配 (${formData.address})`;
+            const itemsText = cart.map((i, idx) => {
+              if (i.isRedemption) return `${idx + 1}. [兌換] ${i.name} (${i.selectedVariant || '單一規格'}) x ${i.quantity} (0點)`;
+              return `${idx + 1}. ${i.name} (${i.selectedVariant || '單一規格'}) x ${i.quantity} (NT$${i.price})`;
+            }).join('\n');
+            
+            const deliveryText = deliveryMethod === 'pickup' ? '店面取貨' : deliveryMethod === 'cvs' ? `超商取貨 (${cvsType} ${formData.storeName})` : `宅配`;
+            const paymentText = deliveryMethod === 'pickup' ? '店取付款' : '貨到付款';
+            const shippingFeeText = deliveryMethod === 'shipping' && !isFreeShipping ? `NT$${shippingFee}` : 'NT$0';
+
+            const messageText = `新訂單通知！
+訂單編號：${orderId}
+----------------
+商品：
+${itemsText}
+----------------
+總金額：NT$${total}
+運費：${shippingFeeText}
+付款方式：${paymentText}
+收件人：${formData.name || user.name}
+電話：${formData.phone || user.phone}
+地址：${deliveryMethod === 'shipping' ? formData.address : (deliveryMethod === 'cvs' ? `${cvsType} ${formData.storeName}` : settings?.storeAddress || '店面取貨')}`;
             
             await liff.sendMessages([{
               type: 'text',
-              text: `感謝您的訂購！\n\n訂單編號: ${orderId}\n\n商品明細:\n${itemsText}\n\n總金額: $${total}\n(含運費: $${deliveryMethod === 'shipping' && !isFreeShipping ? shippingFee : 0}, 折扣: -$${discountAmount})\n預計獲得點數: ${pointsEarned}\n\n取貨方式: ${deliveryText}\n\n我們會盡快為您處理。`
+              text: messageText
             }]);
           }
 
@@ -1153,6 +1205,14 @@
 
       const handleDailyLottery = async () => {
         if (!user) return;
+        
+        // 檢查是否為正式會員 (有手機和生日)
+        if (!user.phone || !user.birthday) {
+          showAlert('請先加入會員 (填寫手機與生日) 才能參加每日抽獎！');
+          setIsEditing(true); // 自動開啟編輯模式引導
+          return;
+        }
+
         setIsLotterySpinning(true);
         try {
           const res = await api.post('drawDailyCoupon', { lineId: user.lineId });
