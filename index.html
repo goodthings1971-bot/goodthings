@@ -1367,7 +1367,7 @@ ${itemsText}
       const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13'];
       const isAdmin = ADMIN_IDS.includes(user.lineId);
       const needsRegistration = !user.phone || !user.birthday;
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
       const canDraw = user.lastDrawDate !== today;
 
       return (
