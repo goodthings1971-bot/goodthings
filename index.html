@@ -102,9 +102,9 @@
     console.log('Step 3: Config loaded');
 
     // --- API 服務 (Fetch) ---
-    const api = {
-      // GET 請求
-      get: async (action, params = {}) => {
+    const api = {};
+    
+    api.get = async (action, params = {}) => {
         if (!GAS_API_URL.includes('/exec')) {
           console.error('GAS_API_URL 設定錯誤');
           return null;
@@ -118,9 +118,9 @@
           console.error('API GET Error:', e);
           return null;
         }
-      },
-      // POST 請求
-      post: async (action, data) => {
+    };
+
+    api.post = async (action, data) => {
         if (!GAS_API_URL.includes('/exec')) return null;
         try {
           const res = await fetch(GAS_API_URL, {
@@ -134,14 +134,14 @@
           console.error('API POST Error:', e);
           throw e;
         }
-      },
-      fetchProducts: () => api.get('getProducts'),
-      fetchCategories: () => api.get('getCategories'),
-      fetchSettings: () => api.get('getSettings'),
-      getUserProfile: (lineId) => api.get('getUserProfile', { lineId }),
-      submitOrder: (order) => api.post('createOrder', { order }),
-      updateUserProfile: (profile) => api.post('updateUserProfile', { profile })
     };
+    
+    api.fetchProducts = () => api.get('getProducts');
+    api.fetchCategories = () => api.get('getCategories');
+    api.fetchSettings = () => api.get('getSettings');
+    api.getUserProfile = (lineId) => api.get('getUserProfile', { lineId });
+    api.submitOrder = (order) => api.post('createOrder', { order });
+    api.updateUserProfile = (profile) => api.post('updateUserProfile', { profile });
     console.log('Step 4: API initialized');
 
     // --- Utils ---
@@ -1027,6 +1027,10 @@
           showAlert('請選擇超商並填寫門市名稱');
           return;
         }
+        if (deliveryMethod === 'shipping' && !formData.address) {
+          showAlert('請填寫收件地址');
+          return;
+        }
         
         setIsSubmitting(true);
         const orderId = generateOrderId();
@@ -1398,13 +1402,6 @@ ${itemsText}
                    <Icons.Gift className={`w-6 h-6 ${isLotterySpinning ? 'animate-spin' : ''}`} />
                    <span className="font-bold text-xs">{canDraw ? '每日抽獎' : '今日已抽'}</span>
                  </button>
-                 <Link 
-                   to="/instructions"
-                   className="flex-1 p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-1 bg-white text-lime-600 active:scale-95 transition-all"
-                 >
-                   <Icons.BookOpen className="w-6 h-6" />
-                   <span className="font-bold text-xs">購物說明</span>
-                 </Link>
                </div>
                
                <div className="flex-[2] bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -1566,6 +1563,10 @@ ${itemsText}
 
             <div className="space-y-2">
               <h3 className="font-bold text-gray-800 ml-1">功能選單</h3>
+              <Link to="/instructions" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+                <span className="text-gray-600">購物說明</span>
+                <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
+              </Link>
               <a href="https://line.me/R/ti/p/@goodthings" target="_blank" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
                 <span className="text-gray-600">聯絡客服</span>
                 <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
