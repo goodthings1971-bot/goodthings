@@ -673,11 +673,11 @@
           }).join('\n');
           const transferNote = paymentMethod==='transfer' ? `\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！` : '';
           const messageText = [
-            `🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,\`\`,
-            `📦 商品明細：`,itemLines,\`\`,
+            `🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',
+            `📦 商品明細：`,itemLines,'',
             `💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,
-            `  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,\`\`,
-            `🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,\`\`,
+            `  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',
+            `🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',
             `👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,
             `  地址：${addressLine}`,`━━━━━━━━━━━━━━━`,
             `感謝您的購買，我們會盡快為您處理！${transferNote}`
