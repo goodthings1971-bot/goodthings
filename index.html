@@ -194,6 +194,7 @@
       const [user, setUser] = useState(null);
       const [settings, setSettings] = useState(null);
       const [redeemableProducts, setRedeemableProducts] = useState([]);
+      const [allProducts, setAllProducts] = useState([]); // ✅ 全站商品快取
       const [isLoading, setIsLoading] = useState(true);
       useEffect(() => {
         const initApp = async () => {
@@ -217,7 +218,10 @@
               try {
                 const [s, p] = await Promise.all([api.fetchSettings(), api.fetchProducts()]);
                 if (s) setSettings(s);
-                if (p) setRedeemableProducts(p.filter(x => (x.redeemPoints || 0) > 0));
+                if (p) {
+                  setAllProducts(p); // ✅ 快取全部商品
+                  setRedeemableProducts(p.filter(x => (x.redeemPoints || 0) > 0));
+                }
               } catch(e) { console.error('Data load fail', e); }
             };
             await Promise.all([loadLiff(), loadData()]);
@@ -253,7 +257,7 @@
         <AppContext.Provider value={{
           cart, addToCart, updateQuantity, clearCart: () => setCart([]), cartTotal,
           user, setUser, settings, shippingFee, isFreeShipping, pointsUsed,
-          redeemableProducts,
+          redeemableProducts, allProducts,
           updateUserProfile: (p) => { const nu = { ...user, ...p }; setUser(nu); api.updateUserProfile(nu); },
           redeemItem: (p) => {
             if ((user.points||0) < p.redeemPoints) return false;
@@ -285,22 +289,27 @@
     }
 
     // --- Shared Components ---
-    const ProductCard = ({ product }) => (
-      <Link to={`/product/${product.id}`} className="block bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg transition-all group relative">
-        <div className="aspect-square w-full bg-gray-100 relative overflow-hidden">
-          {product.images?.[0] ? <img src={product.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" /> : <div className="flex items-center justify-center h-full text-gray-400">無圖片</div>}
-          {product.originalPrice > product.price && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">SALE</div>}
-          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm">庫存: {product.stock}</div>
-        </div>
-        <div className="p-3">
-          <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-lime-600">{product.name}</h3>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-lg font-black text-lime-600">NT${product.price}</span>
-            {product.originalPrice && <span className="text-xs text-gray-400 line-through">NT${product.originalPrice}</span>}
+    const ProductCard = ({ product }) => {
+      // ✅ 計算總庫存（支援 "3,5" 格式）
+      const totalStock = String(product.stock || '0').split(',').map(s => Number(s.trim()) || 0).reduce((a, b) => a + b, 0);
+      return (
+        <Link to={`/product/${product.id}`} className="block bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg transition-all group relative">
+          <div className="aspect-square w-full bg-gray-100 relative overflow-hidden">
+            {product.images?.[0] ? <img src={product.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" /> : <div className="flex items-center justify-center h-full text-gray-400">無圖片</div>}
+            {product.originalPrice > product.price && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">SALE</div>}
+            {totalStock <= 0 && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">售完</span></div>}
+            {totalStock > 0 && <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm">庫存: {totalStock}</div>}
           </div>
-        </div>
-      </Link>
-    );
+          <div className="p-3">
+            <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-lime-600">{product.name}</h3>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-lg font-black text-lime-600">NT${product.price}</span>
+              {product.originalPrice && <span className="text-xs text-gray-400 line-through">NT${product.originalPrice}</span>}
+            </div>
+          </div>
+        </Link>
+      );
+    };
 
     const BottomNav = ({ active }) => {
       const { cart } = useAppContext();
@@ -349,16 +358,16 @@
     // 頁面：首頁
     // =====================================================
     const Home = () => {
-      const { settings, user } = useAppContext();
+      const { settings, user, allProducts } = useAppContext();
       const navigate = useNavigate();
-      const [products, setProducts] = useState([]);
       const [cats, setCats] = useState([]);
       const [activeCat, setActiveCat] = useState('all');
       const [iconSize, setIconSize] = useState('M');
       const [showSizeMenu, setShowSizeMenu] = useState(false);
       const [showDrawer, setShowDrawer] = useState(false);
+      // ✅ 優化：直接用 AppContext 快取的商品，避免重複 API 呼叫
+      const products = allProducts;
       useEffect(() => {
-        api.fetchProducts().then(p => p && setProducts(p));
         api.fetchCategories().then(c => c && setCats(c));
       }, []);
       const filtered = activeCat === 'all' ? products : products.filter(p => p.categoryId === activeCat);
@@ -409,9 +418,9 @@
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">客服支援</p>
                     <button onClick={() => {
                       setShowDrawer(false);
-                      const lineOaId = '705jtuuh'; // 您的 LINE OA ID (不含@)
+                      const lineOaId = '705jtuuh'; // LINE OA ID (不含@)
                       if (typeof liff !== 'undefined' && liff.isInClient()) {
-                        liff.openWindow({ url: `https://line.me/R/oaMessage/@${lineOaId}/`, external: false });
+                        liff.openWindow({ url: `https://line.me/R/ti/p/@${lineOaId}`, external: true });
                       } else {
                         window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank');
                       }
@@ -880,6 +889,7 @@
       const [isEditing, setIsEditing] = useState(false);
       const [formData, setFormData] = useState({});
       const [isLotterySpinning, setIsLotterySpinning] = useState(false);
+      const [showDrawer, setShowDrawer] = useState(false);
       useEffect(() => { if (user) setFormData(user); }, [user]);
       const handleSave = async () => {
         if (!formData.phone || formData.phone.length!==10 || !formData.phone.startsWith('09')) { showAlert('請輸入正確的 10 碼手機號碼 (09開頭)'); return; }
@@ -893,11 +903,20 @@
         if (!user.phone || !user.birthday) { showAlert('請先加入會員 (填寫手機與生日) 才能參加每日抽獎！'); setIsEditing(true); return; }
         setIsLotterySpinning(true);
         try {
+          // ✅ 根本修復：每次抽獎前先從 DB 重新拉取最新資料，不信任本地 state
+          const freshUser = await api.getUserProfile(user.lineId);
+          const todayTW = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+          const lastDrawDay = freshUser?.lastDrawDate ? String(freshUser.lastDrawDate).substring(0, 10) : '';
+          if (lastDrawDay === todayTW) {
+            showAlert('今天已經抽過囉！明天再來 😊');
+            // 同步本地 state
+            setUser(prev => ({ ...prev, lastDrawDate: todayTW }));
+            return;
+          }
           const res = await api.post('drawDailyCoupon', { lineId: user.lineId });
           if (res?.success) {
-            showAlert(`恭喜獲得 ${res.coupon.title}！\n(滿 ${res.coupon.minSpend} 可用)`);
-            const todayTW = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
-            setUser({ ...user, coupons: [...(user.coupons||[]), res.coupon], lastDrawDate: todayTW });
+            showAlert(`🎉 恭喜獲得 ${res.coupon.title}！\n(滿 NT$${res.coupon.minSpend} 可用)`);
+            setUser(prev => ({ ...prev, coupons: [...(prev.coupons||[]), res.coupon], lastDrawDate: todayTW }));
           } else { showAlert(res?.error || '抽獎失敗'); }
         } catch(e) { showAlert('發生錯誤，請稍後再試'); }
         finally { setIsLotterySpinning(false); }
@@ -912,13 +931,79 @@
       const canDraw = lastDrawDay !== todayTW;
       return (
         <div className="min-h-screen bg-gray-50 pb-24">
+          {/* 側拉選單 */}
+          {showDrawer && (
+            <div className="fixed inset-0 z-50 flex">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDrawer(false)} />
+              <div className="relative w-72 max-w-[80vw] bg-white h-full shadow-2xl flex flex-col z-10" style={{animation:'slideInLeft 0.25s ease-out'}}>
+                <div className="bg-lime-600 p-6 pb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-lime-600"><Icons.Zap size={16} fill="currentColor" /></div>
+                      <span className="text-white font-black text-sm">美好的事</span>
+                    </div>
+                    <button onClick={() => setShowDrawer(false)} className="text-white/80 p-1"><Icons.X className="w-5 h-5" /></button>
+                  </div>
+                  {user && (
+                    <div className="flex items-center gap-3">
+                      <img src={user.pictureUrl||'https://via.placeholder.com/40'} className="w-10 h-10 rounded-full border-2 border-white/30" referrerPolicy="no-referrer" />
+                      <div>
+                        <div className="text-white font-bold text-sm">{user.name}</div>
+                        <div className="text-lime-200 text-xs">{user.points||0} 點</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">購物功能</p>
+                  {[
+                    { icon:Icons.Home, label:'首頁', color:'text-lime-600 bg-lime-50', action:()=>{ navigate('/'); setShowDrawer(false); } },
+                    { icon:Icons.ClipboardList, label:'訂單紀錄', color:'text-blue-500 bg-blue-50', action:()=>{ navigate('/orders'); setShowDrawer(false); } },
+                    { icon:Icons.Gift, label:'點數兌換', color:'text-orange-500 bg-orange-50', action:()=>{ navigate('/redeem'); setShowDrawer(false); } },
+                    { icon:Icons.ShoppingBag, label:'購物說明', color:'text-purple-500 bg-purple-50', action:()=>{ navigate('/instructions'); setShowDrawer(false); } },
+                  ].map((item,i) => (
+                    <button key={i} onClick={item.action} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${item.color}`}><item.icon className="w-5 h-5" /></div>
+                      <span className="font-medium text-gray-700">{item.label}</span>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
+                    </button>
+                  ))}
+                  <div className="border-t border-gray-100 my-2 pt-2">
+                    <button onClick={() => {
+                      setShowDrawer(false);
+                      const lineOaId = '705jtuuh';
+                      if (typeof liff !== 'undefined' && liff.isInClient()) { liff.openWindow({ url:`https://line.me/R/ti/p/@${lineOaId}`, external:true }); }
+                      else { window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank'); }
+                    }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-green-600 bg-green-50"><Icons.HelpCircle className="w-5 h-5" /></div>
+                      <span className="font-medium text-gray-700">聯絡客服</span>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
+                    </button>
+                  </div>
+                  {ADMIN_IDS.includes(user?.lineId) && (
+                    <div className="border-t border-gray-100 my-2 pt-2">
+                      <button onClick={() => { navigate('/admin'); setShowDrawer(false); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-purple-600 bg-purple-50"><Icons.ShieldCheck className="w-5 h-5" /></div>
+                        <span className="font-medium text-purple-700 font-bold">管理員後台</span>
+                        <Icons.ArrowLeft className="w-4 h-4 text-purple-300 rotate-180 ml-auto" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="bg-lime-600 p-8 pb-16 rounded-b-[3rem] shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-10 -mb-10"></div>
-            <div className="flex items-center gap-4 relative z-10">
-              <img src={user.pictureUrl||'https://via.placeholder.com/150'} className="w-20 h-20 rounded-full border-4 border-white/30 shadow-md" referrerPolicy="no-referrer" />
-              <div className="text-white">
-                <h2 className="text-xl font-bold">{user.name}</h2>
+            <div className="flex items-center gap-3 relative z-10">
+              {/* 三條線選單按鈕 - 頭像左側 */}
+              <button onClick={() => setShowDrawer(true)} className="p-2 rounded-xl bg-white/20 text-white flex-shrink-0">
+                <Icons.Menu className="w-5 h-5" />
+              </button>
+              <img src={user.pictureUrl||'https://via.placeholder.com/150'} className="w-16 h-16 rounded-full border-4 border-white/30 shadow-md flex-shrink-0" referrerPolicy="no-referrer" />
+              <div className="text-white min-w-0">
+                <h2 className="text-xl font-bold truncate">{user.name}</h2>
                 <div className="text-lime-100 text-sm mt-1">{needsRegistration ? '尚未成為正式會員' : '正式會員'}</div>
               </div>
             </div>
@@ -998,9 +1083,9 @@
             <div className="space-y-2">
               <h3 className="font-bold text-gray-800 ml-1">功能選單</h3>
               <button onClick={() => {
-                const lineOaId = 'goodthings';
+                const lineOaId = '705jtuuh'; // LINE OA ID (不含@)
                 if (typeof liff !== 'undefined' && liff.isInClient()) {
-                  liff.openWindow({ url: `https://line.me/R/oaMessage/@${lineOaId}/`, external: false });
+                  liff.openWindow({ url: `https://line.me/R/ti/p/@${lineOaId}`, external: true });
                 } else {
                   window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank');
                 }
@@ -1084,69 +1169,221 @@
     const ProductDetail = () => {
       const { id } = useParams();
       const navigate = useNavigate();
-      const { addToCart } = useAppContext();
+      const { addToCart, cart, allProducts } = useAppContext();
       const { showAlert } = useDialog();
       const [product, setProduct] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       const [selectedVariant, setSelectedVariant] = useState(null);
+      const [addedAnim, setAddedAnim] = useState(false);
+
+      // 購物車總數（用於角標）
+      const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
+
       useEffect(() => {
+        // ✅ 優化：優先從 AppContext 快取讀取，免去重複 API 呼叫
+        const tryFromCache = () => {
+          if (allProducts && allProducts.length > 0) {
+            const found = allProducts.find(x => String(x.id) === String(id));
+            if (found) {
+              setProduct(found);
+              if (found.variants?.[0]) setSelectedVariant(found.variants[0]);
+              setLoading(false);
+              return true;
+            }
+          }
+          return false;
+        };
+        if (tryFromCache()) return; // 快取命中，立即顯示
+        // 快取未命中才呼叫 API
         setLoading(true);
         api.fetchProducts().then(p => {
           if (!p) { setError('無法載入商品資料'); setLoading(false); return; }
-          const found = p.find(x => String(x.id)===String(id));
+          const found = p.find(x => String(x.id) === String(id));
           if (found) { setProduct(found); if (found.variants?.[0]) setSelectedVariant(found.variants[0]); }
           else setError('找不到此商品');
           setLoading(false);
         }).catch(() => { setError('發生錯誤'); setLoading(false); });
-      }, [id]);
-      if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-      if (error||!product) return <div className="min-h-screen flex flex-col items-center justify-center"><p className="text-red-500 mb-4">{error||'商品不存在'}</p><button onClick={() => navigate('/')} className="bg-lime-600 text-white px-4 py-2 rounded">回首頁</button></div>;
+      }, [id, allProducts]);
+
+      // ✅ 解析各規格庫存：格式 "3,5" 對應 variants [X, XL]
+      const getVariantStock = (product, variantName) => {
+        if (!product) return 0;
+        if (!product.variants || product.variants.length === 0) return Number(product.stock) || 0;
+        const stockStr = String(product.stock || '');
+        const stockParts = stockStr.split(',').map(s => Number(s.trim()) || 0);
+        const variantIndex = product.variants.indexOf(variantName);
+        if (variantIndex >= 0 && variantIndex < stockParts.length) return stockParts[variantIndex];
+        // 若庫存格式不對，回傳總庫存
+        return stockParts.reduce((a, b) => a + b, 0);
+      };
+
+      // 顯示總庫存（所有規格加總）
+      const getTotalStock = (product) => {
+        if (!product) return 0;
+        const stockStr = String(product.stock || '');
+        return stockStr.split(',').map(s => Number(s.trim()) || 0).reduce((a, b) => a + b, 0);
+      };
+
+      const selectedStock = product ? getVariantStock(product, selectedVariant) : 0;
+
+      const handleAddToCart = () => {
+        if (product.variants && product.variants.length > 0 && !selectedVariant) {
+          showAlert('請先選擇規格');
+          return;
+        }
+        if (selectedStock <= 0) {
+          showAlert('此規格已售完');
+          return;
+        }
+        addToCart(product, 1, selectedVariant);
+        setAddedAnim(true);
+        setTimeout(() => setAddedAnim(false), 600);
+        showAlert('✅ 已加入購物車！');
+      };
+
       const getVideoEmbed = (url) => {
         if (!url) return null;
         let embedUrl = null;
-        if (url.includes('youtube.com')||url.includes('youtu.be')) { const vid = (url.split('v=')[1]||url.split('/').pop()).split('&')[0]; embedUrl = `https://www.youtube.com/embed/${vid}`; }
-        else if (url.includes('facebook.com')) { embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`; }
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+          const vid = (url.split('v=')[1] || url.split('/').pop()).split('&')[0].split('?')[0];
+          embedUrl = `https://www.youtube.com/embed/${vid}`;
+        } else if (url.includes('facebook.com')) {
+          embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
+        }
         if (embedUrl) return <div className="aspect-video w-full mt-4 rounded-xl overflow-hidden shadow-sm"><iframe src={embedUrl} className="w-full h-full" frameBorder="0" allowFullScreen></iframe></div>;
         return <div className="mt-4 p-4 bg-gray-100 rounded-xl text-center"><a href={url} target="_blank" className="text-blue-600 underline">點此觀看影片</a></div>;
       };
+
+      if (loading) return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+          <div className="w-10 h-10 border-4 border-lime-200 border-t-lime-500 rounded-full animate-spin mb-3"></div>
+          <div className="text-sm text-gray-400">商品載入中...</div>
+        </div>
+      );
+      if (error || !product) return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+          <p className="text-red-500 mb-4">{error || '商品不存在'}</p>
+          <button onClick={() => navigate('/')} className="bg-lime-600 text-white px-6 py-2 rounded-full font-bold">回首頁</button>
+        </div>
+      );
+
+      const totalStock = getTotalStock(product);
+      const hasVariants = product.variants && product.variants.length > 0;
+
       return (
-        <div className="min-h-screen bg-white pb-24">
-          <div className="relative">
-            <img src={product.images[0]||'https://picsum.photos/400/400'} alt={product.name} className="w-full aspect-square object-cover" referrerPolicy="no-referrer" />
-            <button onClick={() => navigate(-1)} className="absolute top-4 left-4 bg-white/80 p-2 rounded-full shadow-lg backdrop-blur-sm"><Icons.ArrowLeft className="w-6 h-6 text-gray-800" /></button>
+        <div className="min-h-screen bg-white pb-28">
+          {/* 商品圖片 */}
+          <div className="relative bg-gray-100">
+            <img
+              src={product.images?.[0] || 'https://picsum.photos/400/400'}
+              alt={product.name}
+              className="w-full aspect-square object-cover"
+              referrerPolicy="no-referrer"
+            />
+            {/* 返回 & 購物車角標 */}
+            <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
+              <button onClick={() => navigate(-1)} className="bg-white/90 p-2.5 rounded-full shadow-lg backdrop-blur-sm">
+                <Icons.ArrowLeft className="w-5 h-5 text-gray-800" />
+              </button>
+              {/* ✅ 購物車按鈕含角標 */}
+              <button onClick={() => navigate('/cart')} className="bg-white/90 p-2.5 rounded-full shadow-lg backdrop-blur-sm relative">
+                <Icons.ShoppingCart className="w-5 h-5 text-gray-800" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
+            {product.originalPrice > product.price && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">SALE</div>
+            )}
           </div>
-          <div className="p-5 -mt-6 bg-white rounded-t-3xl relative z-10">
-            <div className="flex justify-between items-start mb-2">
-              <h1 className="text-2xl font-bold text-gray-800">{product.name}</h1>
-              <span className="bg-lime-100 text-lime-700 px-3 py-1 rounded-full text-xs font-bold">庫存: {product.stock}</span>
+
+          {/* 商品資訊卡 */}
+          <div className="p-5 -mt-6 bg-white rounded-t-3xl relative z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex justify-between items-start mb-1">
+              <h1 className="text-xl font-bold text-gray-800 flex-1 pr-2">{product.name}</h1>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0 ${totalStock > 0 ? 'bg-lime-100 text-lime-700' : 'bg-red-100 text-red-600'}`}>
+                庫存: {totalStock}
+              </span>
             </div>
-            <div className="flex items-baseline gap-2 mb-6">
+            <div className="flex items-baseline gap-2 mb-5">
               <span className="text-3xl font-bold text-lime-600">NT${product.price}</span>
-              {product.originalPrice && <span className="text-gray-400 line-through text-sm">NT${product.originalPrice}</span>}
+              {product.originalPrice > 0 && product.originalPrice > product.price && (
+                <span className="text-gray-400 line-through text-sm">NT${product.originalPrice}</span>
+              )}
             </div>
-            {product.variants && product.variants.length>0 && (
-              <div className="mb-6">
-                <h3 className="font-bold text-gray-800 mb-3">{product.variantType||'規格'}</h3>
+
+            {/* 規格選擇（含各規格庫存） */}
+            {hasVariants && (
+              <div className="mb-5">
+                <h3 className="font-bold text-gray-800 mb-2 text-sm">{product.variantType || '規格'}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {product.variants.map(v => (
-                    <button key={v} onClick={() => setSelectedVariant(v)}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium ${selectedVariant===v?'border-lime-500 bg-lime-50 text-lime-700':'border-gray-200 text-gray-600'}`}>{v}</button>
-                  ))}
+                  {product.variants.map(v => {
+                    const vStock = getVariantStock(product, v);
+                    const isSelected = selectedVariant === v;
+                    const outOfStock = vStock <= 0;
+                    return (
+                      <button key={v} onClick={() => !outOfStock && setSelectedVariant(v)}
+                        className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all relative ${
+                          outOfStock
+                            ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
+                            : isSelected
+                            ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
+                            : 'border-gray-200 text-gray-600 hover:border-lime-300'
+                        }`}>
+                        {v}
+                        {!outOfStock && <span className={`ml-1.5 text-xs ${isSelected ? 'text-lime-500' : 'text-gray-400'}`}>({vStock})</span>}
+                        {outOfStock && <span className="ml-1.5 text-xs text-gray-300">(售完)</span>}
+                      </button>
+                    );
+                  })}
                 </div>
+                {selectedVariant && selectedStock > 0 && (
+                  <div className="mt-2 text-xs text-gray-400">已選: {selectedVariant} · 剩餘 {selectedStock} 件</div>
+                )}
               </div>
             )}
-            <div className="prose prose-sm text-gray-600 mb-8">
-              <h3 className="font-bold text-gray-800 mb-2">商品介紹</h3>
-              <p className="whitespace-pre-wrap">{product.description}</p>
+
+            {/* 商品介紹 */}
+            <div className="mb-6">
+              <h3 className="font-bold text-gray-800 mb-2 text-sm">商品介紹</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{product.description}</p>
               {getVideoEmbed(product.videoUrl)}
             </div>
           </div>
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex items-center gap-4 z-50">
-            <button onClick={() => navigate('/')} className="p-3 rounded-full border border-gray-200 text-gray-500"><Icons.Home className="w-6 h-6" /></button>
-            <button onClick={() => { addToCart(product,1,selectedVariant); showAlert('已加入購物車'); }}
-              className="flex-1 bg-lime-600 text-white py-3 rounded-full font-bold shadow-lg shadow-lime-200 active:scale-95 transition-transform flex items-center justify-center gap-2">
-              <Icons.ShoppingCart className="w-5 h-5" />加入購物車
+
+          {/* 底部操作欄 */}
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex items-center gap-3 z-50 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+            {/* 首頁按鈕 */}
+            <button onClick={() => navigate('/')} className="p-3 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 flex-shrink-0">
+              <Icons.Home className="w-6 h-6" />
+            </button>
+            {/* 加入購物車按鈕 */}
+            <button
+              onClick={handleAddToCart}
+              disabled={totalStock <= 0}
+              className={`flex-1 py-3.5 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${
+                totalStock <= 0
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : addedAnim
+                  ? 'bg-green-500 text-white scale-95 shadow-green-200'
+                  : 'bg-lime-600 text-white active:scale-95 shadow-lime-200'
+              }`}
+            >
+              <Icons.ShoppingCart className="w-5 h-5" />
+              {totalStock <= 0 ? '已售完' : addedAnim ? '已加入！' : '加入購物車'}
+            </button>
+            {/* 購物車角標（右側固定按鈕） ✅ */}
+            <button onClick={() => navigate('/cart')} className="p-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 flex-shrink-0 relative">
+              <Icons.ShoppingCart className="w-6 h-6" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
