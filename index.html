@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -135,6 +134,8 @@
       Edit:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
       Users:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
       BarChart:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
+      Menu:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
+      X:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
     };
 
     // --- Dialog Context ---
@@ -348,20 +349,93 @@
     // 頁面：首頁
     // =====================================================
     const Home = () => {
-      const { settings } = useAppContext();
+      const { settings, user } = useAppContext();
+      const navigate = useNavigate();
       const [products, setProducts] = useState([]);
       const [cats, setCats] = useState([]);
       const [activeCat, setActiveCat] = useState('all');
       const [iconSize, setIconSize] = useState('M');
       const [showSizeMenu, setShowSizeMenu] = useState(false);
+      const [showDrawer, setShowDrawer] = useState(false);
       useEffect(() => {
         api.fetchProducts().then(p => p && setProducts(p));
         api.fetchCategories().then(c => c && setCats(c));
       }, []);
       const filtered = activeCat === 'all' ? products : products.filter(p => p.categoryId === activeCat);
       const getGridClass = (s) => ({ 'XL':'grid-cols-1','L':'grid-cols-2','M':'grid-cols-3','S':'grid-cols-4','XS':'grid-cols-5' }[s] || 'grid-cols-3');
+      const isAdmin = user && ADMIN_IDS.includes(user.lineId);
       return (
         <div className="min-h-screen bg-gray-50 pb-24 font-sans relative">
+          {/* 側拉選單遮罩 */}
+          {showDrawer && (
+            <div className="fixed inset-0 z-50 flex">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDrawer(false)} />
+              <div className="relative w-72 max-w-[80vw] bg-white h-full shadow-2xl flex flex-col animate-scale-in z-10" style={{animation:'slideInLeft 0.25s ease-out'}}>
+                {/* Drawer Header */}
+                <div className="bg-lime-600 p-6 pb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-lime-600"><Icons.Zap size={16} fill="currentColor" /></div>
+                      <span className="text-white font-black">{settings?.storeName||'美好的事'}</span>
+                    </div>
+                    <button onClick={() => setShowDrawer(false)} className="text-white/80 p-1"><Icons.X className="w-5 h-5" /></button>
+                  </div>
+                  {user && (
+                    <div className="flex items-center gap-3">
+                      <img src={user.pictureUrl||'https://via.placeholder.com/40'} className="w-10 h-10 rounded-full border-2 border-white/30" referrerPolicy="no-referrer" />
+                      <div>
+                        <div className="text-white font-bold text-sm">{user.name}</div>
+                        <div className="text-lime-200 text-xs">{user.points||0} 點</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* Drawer Menu Items */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">購物功能</p>
+                  {[
+                    { icon: Icons.ClipboardList, label: '訂單紀錄', color: 'text-lime-600 bg-lime-50', action: () => { navigate('/orders'); setShowDrawer(false); } },
+                    { icon: Icons.Gift, label: '點數兌換', color: 'text-orange-500 bg-orange-50', action: () => { navigate('/redeem'); setShowDrawer(false); } },
+                    { icon: Icons.ShoppingBag, label: '購物說明', color: 'text-blue-500 bg-blue-50', action: () => { navigate('/instructions'); setShowDrawer(false); } },
+                  ].map((item, i) => (
+                    <button key={i} onClick={item.action}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${item.color}`}><item.icon className="w-5 h-5" /></div>
+                      <span className="font-medium text-gray-700">{item.label}</span>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
+                    </button>
+                  ))}
+                  <div className="border-t border-gray-100 my-2 pt-2">
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">客服支援</p>
+                    <button onClick={() => {
+                      setShowDrawer(false);
+                      const lineOaId = '705jtuuh'; // 您的 LINE OA ID (不含@)
+                      if (typeof liff !== 'undefined' && liff.isInClient()) {
+                        liff.openWindow({ url: `https://line.me/R/oaMessage/@${lineOaId}/`, external: false });
+                      } else {
+                        window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank');
+                      }
+                    }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-green-600 bg-green-50"><Icons.HelpCircle className="w-5 h-5" /></div>
+                      <span className="font-medium text-gray-700">聯絡客服</span>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
+                    </button>
+                  </div>
+                  {isAdmin && (
+                    <div className="border-t border-gray-100 my-2 pt-2">
+                      <button onClick={() => { navigate('/admin'); setShowDrawer(false); }}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 active:bg-purple-100 transition-colors">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-purple-600 bg-purple-50"><Icons.ShieldCheck className="w-5 h-5" /></div>
+                        <span className="font-medium text-purple-700 font-bold">管理員後台</span>
+                        <Icons.ArrowLeft className="w-4 h-4 text-purple-300 rotate-180 ml-auto" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <style>{`@keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }`}</style>
           <div className="bg-lime-500 text-white sticky top-0 z-40 shadow-md rounded-b-3xl">
             {settings?.marqueeText && (
               <div className="bg-lime-700 text-white text-xs py-1 overflow-hidden whitespace-nowrap">
@@ -370,11 +444,14 @@
             )}
             <div className="px-5 py-4 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-lime-600"><Icons.Zap size={20} fill="currentColor" /></div>
+                {/* 漢堡選單按鈕 */}
+                <button onClick={() => setShowDrawer(true)} className="p-1.5 rounded-lg bg-lime-600/50 mr-1">
+                  <Icons.Menu className="w-5 h-5" />
+                </button>
+                <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-lime-600"><Icons.Zap size={18} fill="currentColor" /></div>
                 <h1 className="font-black text-xl tracking-wide">{settings?.storeName || '美好的事'}</h1>
               </div>
-              <div className="flex items-center gap-3">
-                <Link to="/instructions" className="p-2"><Icons.HelpCircle size={24} /></Link>
+              <div className="flex items-center gap-2">
                 <Link to="/cart" className="relative p-2"><Icons.ShoppingCart size={24} /></Link>
               </div>
             </div>
@@ -491,8 +568,47 @@
         try {
           await api.submitOrder(order);
           if (typeof liff !== 'undefined' && liff.isInClient()) {
-            const itemsText = cart.map((i,idx) => i.isRedemption ? `${idx+1}.[兌換]${i.name}x${i.quantity}` : `${idx+1}.${i.name}x${i.quantity}(NT$${i.price})`).join('\n');
-            await liff.sendMessages([{ type:'text', text:`訂單 ${orderId} 已送出！\n${itemsText}\n總金額:NT$${total}` }]);
+            const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
+            const paymentLabel = deliveryMethod==='pickup' ? '店取付款' : '貨到付款';
+            const shippingText = deliveryMethod==='shipping' ? (isFreeShipping ? '免運費' : `NT$${shippingFee}`) : '免運費';
+            const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
+            const itemLines = cart.map((item, idx) => {
+              const variantText = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
+              if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${variantText} x${item.quantity}`;
+              return `  ${idx+1}. ${item.name}${variantText} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
+            }).join('\n');
+            const discountLine = discountAmount > 0 ? `\n折扣優惠：-NT$${discountAmount}` : '';
+            const pointsLine = pointsUsed > 0 ? `\n扣除點數：${pointsUsed} 點` : '';
+            const earnLine = pointsEarned > 0 ? `\n預計獲得：${pointsEarned} 點` : '';
+            const messageText = [
+              `🛍️ 訂單確認通知`,
+              `━━━━━━━━━━━━━━━`,
+              `訂單編號：${orderId}`,
+              ``,
+              `📦 商品明細：`,
+              itemLines,
+              ``,
+              `💰 費用明細：`,
+              `  商品小計：NT$${cartTotal.toLocaleString()}`,
+              `  運費：${shippingText}${discountLine}${pointsLine}`,
+              `  ─────────────`,
+              `  總金額：NT$${total.toLocaleString()}${earnLine}`,
+              ``,
+              `🚀 取貨方式：${deliveryLabel}`,
+              `💳 付款方式：${paymentLabel}`,
+              ``,
+              `👤 收件資訊：`,
+              `  姓名：${formData.name||user.name}`,
+              `  電話：${formData.phone||user.phone}`,
+              `  地址：${addressLine}`,
+              `━━━━━━━━━━━━━━━`,
+              `感謝您的購買，我們會盡快為您處理！`
+            ].join('\n');
+            try {
+              await liff.sendMessages([{ type:'text', text: messageText }]);
+            } catch(liffErr) {
+              console.warn('LIFF sendMessages failed (may not be in LINE client):', liffErr);
+            }
           }
           showAlert('訂單已送出！');
           clearCart();
@@ -780,16 +896,20 @@
           const res = await api.post('drawDailyCoupon', { lineId: user.lineId });
           if (res?.success) {
             showAlert(`恭喜獲得 ${res.coupon.title}！\n(滿 ${res.coupon.minSpend} 可用)`);
-            setUser({ ...user, coupons: [...(user.coupons||[]), res.coupon], lastDrawDate: res.coupon.expiry });
-          } else { showAlert(res.error || '抽獎失敗'); }
+            const todayTW = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+            setUser({ ...user, coupons: [...(user.coupons||[]), res.coupon], lastDrawDate: todayTW });
+          } else { showAlert(res?.error || '抽獎失敗'); }
         } catch(e) { showAlert('發生錯誤，請稍後再試'); }
         finally { setIsLotterySpinning(false); }
       };
       if (!user) return null;
       const isAdmin = ADMIN_IDS.includes(user.lineId);
       const needsRegistration = !user.phone || !user.birthday;
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
-      const canDraw = user.lastDrawDate !== today;
+      // ✅ 修復：統一用台北時區的今日日期字串比較，避免重開後能再抽
+      const todayTW = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+      // lastDrawDate 可能是完整 ISO 字串，擷取前10碼（YYYY-MM-DD）再比對
+      const lastDrawDay = user.lastDrawDate ? String(user.lastDrawDate).substring(0, 10) : '';
+      const canDraw = lastDrawDay !== todayTW;
       return (
         <div className="min-h-screen bg-gray-50 pb-24">
           <div className="bg-lime-600 p-8 pb-16 rounded-b-[3rem] shadow-lg relative overflow-hidden">
@@ -874,30 +994,23 @@
                 <button onClick={() => { updateUserProfile({...user,wishlist:formData.wishlist}); showAlert('許願已送出！'); }} className="bg-lime-100 text-lime-700 px-4 py-1.5 rounded-full text-xs font-bold">送出許願</button>
               </div>
             </div>
-            {/* ✅ 功能選單（新增訂單紀錄） */}
+            {/* 功能選單（訂單紀錄和購物說明已移至首頁主選單） */}
             <div className="space-y-2">
               <h3 className="font-bold text-gray-800 ml-1">功能選單</h3>
-              <button onClick={() => navigate('/orders')} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="bg-lime-100 p-2 rounded-full"><Icons.ClipboardList className="w-5 h-5 text-lime-600" /></div>
-                  <span className="text-gray-700 font-medium">訂單紀錄</span>
-                </div>
-                <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
-              </button>
-              <Link to="/instructions" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-100 p-2 rounded-full"><Icons.HelpCircle className="w-5 h-5 text-blue-500" /></div>
-                  <span className="text-gray-700 font-medium">購物說明</span>
-                </div>
-                <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
-              </Link>
-              <a href="https://line.me/R/ti/p/@goodthings" target="_blank" className="block bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+              <button onClick={() => {
+                const lineOaId = 'goodthings';
+                if (typeof liff !== 'undefined' && liff.isInClient()) {
+                  liff.openWindow({ url: `https://line.me/R/oaMessage/@${lineOaId}/`, external: false });
+                } else {
+                  window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank');
+                }
+              }} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="bg-green-100 p-2 rounded-full"><Icons.HelpCircle className="w-5 h-5 text-green-500" /></div>
                   <span className="text-gray-700 font-medium">聯絡客服</span>
                 </div>
                 <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
-              </a>
+              </button>
             </div>
           </div>
           <BottomNav active="profile" />
@@ -1094,29 +1207,78 @@
         finally { setLoading(false); }
       };
 
-      const updateStatus = async (orderId, newStatus) => {
-        let notify = false;
-        if (newStatus==='Shipped') {
-          notify = await showConfirm(`訂單 ${orderId} 確認出貨？\n是否發送 LINE 通知給用戶？`, '出貨確認');
-        } else if (newStatus==='Completed') {
-          if (!await showConfirm(`確定完成訂單 ${orderId} 並發送點數？\n(將自動通知用戶)`, '完成訂單')) return;
-          notify = true;
-        } else {
-          if (!await showConfirm(`確定將訂單 ${orderId} 狀態改為 ${newStatus}?`)) return;
+      // ✅ 修改：改用 LIFF shareTargetPicker 發送通知
+      const sendLiffNotification = async (message) => {
+        if (typeof liff === 'undefined' || !liff.isInClient()) {
+          console.warn('Not in LIFF client, cannot send message');
+          return false;
         }
         try {
-          const r = await api.post('updateOrderStatus', { adminId:user.lineId, orderId, status:newStatus, notify });
-          if (r?.success) { showAlert('更新成功'); fetchTabData('orders'); }
-          else showAlert('更新失敗：' + (r?.error||'請稍後再試'));
+          // 檢查是否支援 shareTargetPicker
+          if (liff.isApiAvailable('shareTargetPicker')) {
+            await liff.shareTargetPicker([{ type: 'text', text: message }]);
+            return true;
+          } else {
+            // 若不支援，使用 sendMessages (會傳到當前聊天)
+            await liff.sendMessages([{ type: 'text', text: message }]);
+            return true;
+          }
+        } catch(e) {
+          console.error('LIFF send failed:', e);
+          return false;
+        }
+      };
+
+      const updateStatus = async (orderId, newStatus) => {
+        const order = orders.find(o => o.orderId === orderId);
+        const method = order?.content?.deliveryMethod || order?.deliveryMethod;
+        let notifyMsg = '';
+        if (newStatus==='Shipped') {
+          const confirmed = await showConfirm(`訂單 ${orderId} 確認出貨？\n是否同時發送 LINE 通知給用戶？`, '出貨確認');
+          if (confirmed) {
+            notifyMsg = method === 'pickup'
+              ? `🏪 取貨通知\n\n您的訂單 ${orderId} 已備妥！\n\n請儘快到店完成取貨 😊`
+              : `🚚 出貨通知\n\n您的訂單 ${orderId} 已寄送！\n\n請耐心等候收件，謝謝 😊`;
+          }
+        } else if (newStatus==='Completed') {
+          if (!await showConfirm(`確定完成訂單 ${orderId} 並發送點數？`, '完成訂單')) return;
+          const pts = order?.content?.pointsEarned || 0;
+          notifyMsg = `✅ 訂單完成通知\n\n訂單 ${orderId} 已完成！${pts > 0 ? `\n\n恭喜獲得 ${pts} 點數！` : ''}\n\n感謝您的購買 🎉`;
+        } else if (newStatus==='Cancelled') {
+          if (!await showConfirm(`確定取消訂單 ${orderId}？`)) return;
+        }
+        try {
+          const r = await api.post('updateOrderStatus', { adminId:user.lineId, orderId, status:newStatus, notify: false });
+          if (r?.success) {
+            if (notifyMsg) {
+              const sent = await sendLiffNotification(notifyMsg);
+              showAlert(sent ? '更新成功，通知已發送 ✅' : '更新成功（LIFF 通知未發送，請確認在 LINE 中開啟）');
+            } else {
+              showAlert('更新成功');
+            }
+            fetchTabData('orders');
+          } else showAlert('更新失敗：' + (r?.error||'請稍後再試'));
         } catch(e) { showAlert('更新失敗'); }
       };
 
       const updateRedemptionStatus = async (redemptionId, newStatus) => {
-        const notify = await showConfirm(`是否發送 LINE 通知給用戶？`, `更新兌換狀態為 ${newStatus}`);
+        const redemption = redemptions.find(r => r.redemptionId === redemptionId);
+        const sendNotify = await showConfirm(`更新兌換狀態為「${newStatus==='Shipped'?'已出貨':'已完成'}」\n是否同時發送 LINE 通知？`, '更新兌換狀態');
         try {
-          const r = await api.post('updateRedemptionStatus', { adminId:user.lineId, redemptionId, status:newStatus, notify });
-          if (r?.success) { showAlert('更新成功'); fetchTabData('redemptions'); }
-          else showAlert('更新失敗：' + (r?.error||'請稍後再試'));
+          const r = await api.post('updateRedemptionStatus', { adminId:user.lineId, redemptionId, status:newStatus, notify: false });
+          if (r?.success) {
+            if (sendNotify) {
+              const itemName = redemption?.content?.itemName || '';
+              const msg = newStatus === 'Shipped'
+                ? `🚚 兌換出貨通知\n\n您的兌換商品「${itemName}」已出貨！\n請耐心等候收件 😊`
+                : `✅ 兌換完成通知\n\n您的兌換商品「${itemName}」已完成！\n感謝您的使用 🎉`;
+              const sent = await sendLiffNotification(msg);
+              showAlert(sent ? '更新成功，通知已發送 ✅' : '更新成功（LIFF 通知未發送）');
+            } else {
+              showAlert('更新成功');
+            }
+            fetchTabData('redemptions');
+          } else showAlert('更新失敗：' + (r?.error||'請稍後再試'));
         } catch(e) { showAlert('更新失敗'); }
       };
 
