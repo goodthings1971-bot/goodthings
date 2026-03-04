@@ -67,6 +67,13 @@
     const LIFF_ID = '2009248623-E3UOP9Mc';
     const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13'];
 
+    // --- 轉帳資訊 ---
+    const TRANSFER_INFO = [
+      { bank: '街口支付', account: '902288309', note: '街口電子支付' },
+      { bank: '中國信託 (822)', account: '241540044301', note: '' },
+      { bank: '國泰世華 (013)', account: '011503590010', note: '' },
+    ];
+
     // --- API 服務 ---
     const api = {};
     api.get = async (action, params = {}) => {
@@ -136,6 +143,7 @@
       BarChart:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
       Menu:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
       X:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+      Check:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
     };
 
     // --- Dialog Context ---
@@ -403,40 +411,98 @@
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                   <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">購物功能</p>
                   {[
-                    { icon: Icons.ClipboardList, label: '訂單紀錄', color: 'text-lime-600 bg-lime-50', action: () => { navigate('/orders'); setShowDrawer(false); } },
-                    { icon: Icons.Gift, label: '點數兌換', color: 'text-orange-500 bg-orange-50', action: () => { navigate('/redeem'); setShowDrawer(false); } },
-                    { icon: Icons.ShoppingBag, label: '購物說明', color: 'text-blue-500 bg-blue-50', action: () => { navigate('/instructions'); setShowDrawer(false); } },
+                    { icon: Icons.ClipboardList, label: '訂單紀錄', desc: '查看歷史訂單', color: 'text-lime-600 bg-lime-50', action: () => { navigate('/orders'); setShowDrawer(false); } },
+                    { icon: Icons.Gift, label: '點數兌換', desc: `目前 ${user?.points||0} 點`, color: 'text-orange-500 bg-orange-50', action: () => { navigate('/redeem'); setShowDrawer(false); } },
+                    { icon: Icons.ShoppingBag, label: '購物說明', desc: '付款·取貨·退換貨', color: 'text-blue-500 bg-blue-50', action: () => { navigate('/instructions'); setShowDrawer(false); } },
+                    { icon: Icons.User, label: '會員中心', desc: '個人資料·優惠券', color: 'text-purple-500 bg-purple-50', action: () => { navigate('/profile'); setShowDrawer(false); } },
                   ].map((item, i) => (
                     <button key={i} onClick={item.action}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${item.color}`}><item.icon className="w-5 h-5" /></div>
-                      <span className="font-medium text-gray-700">{item.label}</span>
-                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${item.color}`}><item.icon className="w-5 h-5" /></div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-700 text-sm">{item.label}</div>
+                        <div className="text-xs text-gray-400">{item.desc}</div>
+                      </div>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
                     </button>
                   ))}
+                  <div className="border-t border-gray-100 my-2 pt-2">
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">帳戶工具</p>
+                    {/* 每日抽獎快捷 */}
+                    {(() => {
+                      const todayTW = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+                      const lastDay = user?.lastDrawDate ? String(user.lastDrawDate).substring(0,10) : '';
+                      const canDraw = lastDay !== todayTW;
+                      return (
+                        <button onClick={() => { navigate('/profile'); setShowDrawer(false); }}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${canDraw?'text-orange-500 bg-orange-50':'text-gray-300 bg-gray-50'}`}>
+                            <Icons.Gift className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="font-medium text-gray-700 text-sm">每日抽獎</div>
+                            <div className={`text-xs ${canDraw?'text-orange-500 font-bold':'text-gray-400'}`}>{canDraw?'🎉 今天可以抽！':'今日已抽'}</div>
+                          </div>
+                          <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
+                        </button>
+                      );
+                    })()}
+                    {/* 我的優惠券 */}
+                    <button onClick={() => { navigate('/profile'); setShowDrawer(false); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-yellow-600 bg-yellow-50 flex-shrink-0">
+                        <Icons.CreditCard className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-700 text-sm">我的優惠券</div>
+                        <div className="text-xs text-gray-400">{user?.coupons?.length||0} 張可用</div>
+                      </div>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
+                    </button>
+                  </div>
                   <div className="border-t border-gray-100 my-2 pt-2">
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">客服支援</p>
                     <button onClick={() => {
                       setShowDrawer(false);
-                      const lineOaId = '705jtuuh'; // LINE OA ID (不含@)
+                      const lineOaId = '705jtuuh';
                       if (typeof liff !== 'undefined' && liff.isInClient()) {
                         liff.openWindow({ url: `https://line.me/R/ti/p/@${lineOaId}`, external: true });
                       } else {
                         window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank');
                       }
                     }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-green-600 bg-green-50"><Icons.HelpCircle className="w-5 h-5" /></div>
-                      <span className="font-medium text-gray-700">聯絡客服</span>
-                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-green-600 bg-green-50 flex-shrink-0"><Icons.HelpCircle className="w-5 h-5" /></div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-700 text-sm">聯絡客服</div>
+                        <div className="text-xs text-gray-400">LINE 即時諮詢</div>
+                      </div>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
+                    </button>
+                    {/* 轉帳帳號快查 */}
+                    <button onClick={() => {
+                      setShowDrawer(false);
+                      navigate('/cart');
+                    }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-indigo-500 bg-indigo-50 flex-shrink-0">
+                        <Icons.CreditCard className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-700 text-sm">付款帳號</div>
+                        <div className="text-xs text-gray-400">街口 / 中信 / 國泰</div>
+                      </div>
+                      <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
                     </button>
                   </div>
                   {isAdmin && (
                     <div className="border-t border-gray-100 my-2 pt-2">
                       <button onClick={() => { navigate('/admin'); setShowDrawer(false); }}
                         className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 active:bg-purple-100 transition-colors">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-purple-600 bg-purple-50"><Icons.ShieldCheck className="w-5 h-5" /></div>
-                        <span className="font-medium text-purple-700 font-bold">管理員後台</span>
-                        <Icons.ArrowLeft className="w-4 h-4 text-purple-300 rotate-180 ml-auto" />
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-purple-600 bg-purple-50 flex-shrink-0"><Icons.ShieldCheck className="w-5 h-5" /></div>
+                        <div className="flex-1 text-left">
+                          <div className="font-medium text-purple-700 font-bold text-sm">管理員後台</div>
+                          <div className="text-xs text-purple-400">訂單·用戶·商品管理</div>
+                        </div>
+                        <Icons.ArrowLeft className="w-4 h-4 text-purple-300 rotate-180" />
                       </button>
                     </div>
                   )}
@@ -465,8 +531,16 @@
               </div>
             </div>
             <div className="px-4 pb-4 overflow-x-auto no-scrollbar flex gap-2">
-              <button onClick={() => setActiveCat('all')} className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap ${activeCat==='all'?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>全部商品</button>
-              {cats.map(c => <button key={c.id} onClick={() => setActiveCat(c.id)} className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap ${activeCat===c.id?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>{c.name}</button>)}
+              <button onClick={() => setActiveCat('all')} className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1.5 ${activeCat==='all'?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>
+                全部商品
+              </button>
+              {cats.map(c => (
+                <button key={c.id} onClick={() => setActiveCat(c.id)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1.5 ${activeCat===c.id?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>
+                  {c.iconUrl && <img src={c.iconUrl} className="w-4 h-4 rounded-sm object-cover" referrerPolicy="no-referrer" onError={e=>e.target.style.display='none'} />}
+                  {c.name}
+                </button>
+              ))}
             </div>
           </div>
           <div className="p-4">
@@ -539,6 +613,7 @@
       </div>
     );
 
+
     // =====================================================
     // 頁面：購物車
     // =====================================================
@@ -548,9 +623,13 @@
       const navigate = useNavigate();
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [deliveryMethod, setDeliveryMethod] = useState('shipping');
+      const [paymentMethod, setPaymentMethod] = useState('transfer');
       const [cvsType, setCvsType] = useState('');
       const [formData, setFormData] = useState({ name: user?.name||'', phone: user?.phone||'', address: user?.address||'', storeName: '' });
       const [selectedCoupon, setSelectedCoupon] = useState(null);
+      const [showTransferModal, setShowTransferModal] = useState(false);
+      const [completedOrderId, setCompletedOrderId] = useState('');
+      const [copiedBank, setCopiedBank] = useState('');
       let discountAmount = selectedCoupon ? selectedCoupon.value : 0;
       const total = cartTotal + (deliveryMethod==='shipping' ? (isFreeShipping?0:shippingFee) : 0) - discountAmount;
       const pointsEarned = Math.floor(cartTotal / (settings?.pointRatio || 100));
@@ -559,8 +638,14 @@
         const today = new Date().toISOString().split('T')[0];
         return c.expiry >= today && cartTotal >= c.minSpend;
       });
-      const handleSubmit = async (e) => {
-        if (e && e.preventDefault) e.preventDefault();
+
+      const copyToClipboard = (text, bankName) => {
+        try { navigator.clipboard.writeText(text); } catch(e) { const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); }
+        setCopiedBank(bankName);
+        setTimeout(() => setCopiedBank(''), 2000);
+      };
+
+      const handleSubmit = async () => {
         if (cart.length === 0) return;
         if (!user?.phone) { showAlert('請先至會員中心填寫手機號碼'); navigate('/profile'); return; }
         if (deliveryMethod==='cvs' && (!cvsType || !formData.storeName)) { showAlert('請選擇超商並填寫門市名稱'); return; }
@@ -569,63 +654,94 @@
         const orderId = generateOrderId();
         const order = {
           orderId, user: { lineId:user.lineId, name:formData.name||user.name, phone:formData.phone||user.phone,
-            address:deliveryMethod==='shipping'?formData.address:(deliveryMethod==='cvs'?`${cvsType} ${formData.storeName}`:'店面取貨') },
+            address:deliveryMethod==='shipping'?formData.address:(deliveryMethod==='cvs'?`${cvsType} ${formData.storeName}`:`店面取貨`) },
           items:cart, total, pointsUsed, pointsEarned, discount:discountAmount,
-          deliveryMethod, shippingFee:deliveryMethod==='shipping'?(isFreeShipping?0:shippingFee):0,
+          deliveryMethod, paymentMethod,
+          shippingFee:deliveryMethod==='shipping'?(isFreeShipping?0:shippingFee):0,
           status:'Pending', createdAt:new Date().toISOString()
         };
         try {
           await api.submitOrder(order);
+          const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
+          const paymentLabel = paymentMethod==='transfer' ? '轉帳付款' : deliveryMethod==='pickup' ? '門市付款' : '貨到付款';
+          const shippingText = deliveryMethod==='shipping' ? (isFreeShipping ? '免運費' : `NT$${shippingFee}`) : '免運費';
+          const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
+          const itemLines = cart.map((item, idx) => {
+            const vt = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
+            if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${vt} x${item.quantity}`;
+            return `  ${idx+1}. ${item.name}${vt} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
+          }).join('\n');
+          const transferNote = paymentMethod==='transfer' ? `\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！` : '';
+          const messageText = [
+            `🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,\`\`,
+            `📦 商品明細：`,itemLines,\`\`,
+            `💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,
+            `  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,\`\`,
+            `🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,\`\`,
+            `👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,
+            `  地址：${addressLine}`,`━━━━━━━━━━━━━━━`,
+            `感謝您的購買，我們會盡快為您處理！${transferNote}`
+          ].join('\n');
           if (typeof liff !== 'undefined' && liff.isInClient()) {
-            const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
-            const paymentLabel = deliveryMethod==='pickup' ? '店取付款' : '貨到付款';
-            const shippingText = deliveryMethod==='shipping' ? (isFreeShipping ? '免運費' : `NT$${shippingFee}`) : '免運費';
-            const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
-            const itemLines = cart.map((item, idx) => {
-              const variantText = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
-              if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${variantText} x${item.quantity}`;
-              return `  ${idx+1}. ${item.name}${variantText} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
-            }).join('\n');
-            const discountLine = discountAmount > 0 ? `\n折扣優惠：-NT$${discountAmount}` : '';
-            const pointsLine = pointsUsed > 0 ? `\n扣除點數：${pointsUsed} 點` : '';
-            const earnLine = pointsEarned > 0 ? `\n預計獲得：${pointsEarned} 點` : '';
-            const messageText = [
-              `🛍️ 訂單確認通知`,
-              `━━━━━━━━━━━━━━━`,
-              `訂單編號：${orderId}`,
-              ``,
-              `📦 商品明細：`,
-              itemLines,
-              ``,
-              `💰 費用明細：`,
-              `  商品小計：NT$${cartTotal.toLocaleString()}`,
-              `  運費：${shippingText}${discountLine}${pointsLine}`,
-              `  ─────────────`,
-              `  總金額：NT$${total.toLocaleString()}${earnLine}`,
-              ``,
-              `🚀 取貨方式：${deliveryLabel}`,
-              `💳 付款方式：${paymentLabel}`,
-              ``,
-              `👤 收件資訊：`,
-              `  姓名：${formData.name||user.name}`,
-              `  電話：${formData.phone||user.phone}`,
-              `  地址：${addressLine}`,
-              `━━━━━━━━━━━━━━━`,
-              `感謝您的購買，我們會盡快為您處理！`
-            ].join('\n');
-            try {
-              await liff.sendMessages([{ type:'text', text: messageText }]);
-            } catch(liffErr) {
-              console.warn('LIFF sendMessages failed (may not be in LINE client):', liffErr);
-            }
+            try { await liff.sendMessages([{ type:'text', text: messageText }]); } catch(e) {}
           }
-          showAlert('訂單已送出！');
           clearCart();
-          navigate('/orders');
-        } catch(e) { console.error(e); showAlert('訂單送出失敗，請重試'); }
+          if (paymentMethod === 'transfer') {
+            setCompletedOrderId(orderId);
+            setShowTransferModal(true);
+          } else {
+            showAlert('訂單已送出！');
+            navigate('/orders');
+          }
+        } catch(e) { showAlert('訂單送出失敗，請重試'); }
         finally { setIsSubmitting(false); }
       };
-      if (cart.length===0) return (
+
+      const TransferModal = () => (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+            <div className="bg-gradient-to-br from-lime-500 to-lime-600 p-6 text-center">
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg text-3xl">✅</div>
+              <h2 className="text-white font-black text-xl">訂單已成立！</h2>
+              <p className="text-lime-100 text-sm mt-1">訂單編號：{completedOrderId}</p>
+            </div>
+            <div className="p-5">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+                <p className="text-amber-800 font-bold text-sm mb-1">📢 請完成轉帳後回傳截圖</p>
+                <p className="text-amber-700 text-xs">確認收款後即安排出貨，感謝您的耐心等候 🙏</p>
+              </div>
+              <p className="text-xs font-bold text-gray-400 mb-3 text-center">點帳號即可複製</p>
+              <div className="space-y-2">
+                {TRANSFER_INFO.map((info, i) => (
+                  <button key={i} onClick={() => copyToClipboard(info.account, info.bank)}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${copiedBank===info.bank ? 'border-lime-400 bg-lime-50' : 'border-gray-100 bg-gray-50'}`}>
+                    <div className="text-left">
+                      <div className="font-bold text-gray-800 text-sm">{info.bank}</div>
+                      <div className="font-mono text-gray-600 text-sm tracking-wider">{info.account}</div>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-lg ${copiedBank===info.bank ? 'text-lime-700 bg-lime-100' : 'text-gray-400 bg-gray-200'}`}>
+                      {copiedBank===info.bank ? '已複製！' : '複製'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button onClick={() => {
+                  const id = '705jtuuh';
+                  if (typeof liff !== 'undefined' && liff.isInClient()) { liff.openWindow({ url:`https://line.me/R/ti/p/@${id}`, external:true }); }
+                  else { window.open(`https://line.me/R/ti/p/@${id}`, '_blank'); }
+                }} className="py-3 rounded-xl border-2 border-green-200 bg-green-50 text-green-700 font-bold text-sm">
+                  📤 傳截圖給客服
+                </button>
+                <button onClick={() => { setShowTransferModal(false); navigate('/orders'); }}
+                  className="py-3 rounded-xl bg-lime-600 text-white font-bold text-sm shadow-md">查看訂單</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      if (cart.length===0 && !showTransferModal) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
           <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4 text-gray-400"><Icons.ShoppingCart className="w-10 h-10" /></div>
           <p className="text-gray-500 mb-6">購物車是空的</p>
@@ -635,6 +751,7 @@
       );
       return (
         <div className="min-h-screen bg-gray-50 pb-32">
+          {showTransferModal && <TransferModal />}
           <div className="bg-white p-4 sticky top-0 z-10 shadow-sm text-center font-bold text-lg">購物車</div>
           <div className="p-4 space-y-4">
             {deliveryMethod==='shipping' && !isFreeShipping && (
@@ -661,7 +778,6 @@
                 </div>
               </div>
             ))}
-            {/* 優惠券 */}
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
               <h3 className="font-bold text-gray-800">使用優惠券</h3>
               {availableCoupons.length > 0 ? (
@@ -679,7 +795,6 @@
                 </div>
               ) : <div className="text-center text-gray-400 text-sm py-2">無可用優惠券</div>}
             </div>
-            {/* 取貨方式 */}
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
               <h3 className="font-bold text-gray-800">取貨方式</h3>
               <div className="grid grid-cols-3 gap-2">
@@ -698,6 +813,37 @@
                     <button onClick={() => setCvsType('FamilyMart')} className={`flex-1 py-2 rounded-lg border font-bold text-sm ${cvsType==='FamilyMart'?'bg-blue-600 text-white border-blue-600':'bg-white text-gray-500 border-gray-200'}`}>全家</button>
                   </div>
                   <input placeholder="請輸入門市名稱" value={formData.storeName} onChange={e => setFormData({...formData, storeName:e.target.value})} className="w-full p-2 border rounded-lg text-sm" />
+                </div>
+              )}
+            </div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+              <h3 className="font-bold text-gray-800">付款方式</h3>
+              <div className="space-y-2">
+                {[
+                  { id:'transfer', emoji:'💳', label:'轉帳付款', desc:'ATM / 街口 / 網路銀行' },
+                  ...(deliveryMethod!=='pickup' ? [{ id:'cod', emoji:'🚚', label:'貨到付款', desc:'取貨時付款給物流人員' }] : []),
+                  ...(deliveryMethod==='pickup' ? [{ id:'store', emoji:'🏪', label:'門市付款', desc:'至門市取貨時付款' }] : []),
+                ].map(p => (
+                  <button key={p.id} onClick={() => setPaymentMethod(p.id)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left ${paymentMethod===p.id?'border-lime-500 bg-lime-50':'border-gray-100 bg-gray-50'}`}>
+                    <span className="text-xl">{p.emoji}</span>
+                    <div className="flex-1">
+                      <div className={`font-bold text-sm ${paymentMethod===p.id?'text-lime-700':'text-gray-700'}`}>{p.label}</div>
+                      <div className="text-xs text-gray-400">{p.desc}</div>
+                    </div>
+                    {paymentMethod===p.id && <div className="w-5 h-5 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">✓</div>}
+                  </button>
+                ))}
+              </div>
+              {paymentMethod==='transfer' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                  <p className="font-bold mb-2">📋 轉帳帳號：</p>
+                  {TRANSFER_INFO.map((info,i) => (
+                    <div key={i} className="flex justify-between py-1 border-b border-amber-100 last:border-0">
+                      <span>{info.bank}</span><span className="font-mono font-bold">{info.account}</span>
+                    </div>
+                  ))}
+                  <p className="mt-2 text-amber-600">完成後請傳截圖給客服，確認後安排出貨</p>
                 </div>
               )}
             </div>
@@ -883,7 +1029,7 @@
     // 頁面：會員中心
     // =====================================================
     const Profile = () => {
-      const { user, updateUserProfile, setUser } = useAppContext();
+      const { user, updateUserProfile, setUser, cart } = useAppContext();
       const { showAlert } = useDialog();
       const navigate = useNavigate();
       const [isEditing, setIsEditing] = useState(false);
@@ -957,14 +1103,18 @@
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                   <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">購物功能</p>
                   {[
-                    { icon:Icons.Home, label:'首頁', color:'text-lime-600 bg-lime-50', action:()=>{ navigate('/'); setShowDrawer(false); } },
-                    { icon:Icons.ClipboardList, label:'訂單紀錄', color:'text-blue-500 bg-blue-50', action:()=>{ navigate('/orders'); setShowDrawer(false); } },
-                    { icon:Icons.Gift, label:'點數兌換', color:'text-orange-500 bg-orange-50', action:()=>{ navigate('/redeem'); setShowDrawer(false); } },
-                    { icon:Icons.ShoppingBag, label:'購物說明', color:'text-purple-500 bg-purple-50', action:()=>{ navigate('/instructions'); setShowDrawer(false); } },
+                    { icon:Icons.Home, label:'首頁', desc:'逛商品', color:'text-lime-600 bg-lime-50', action:()=>{ navigate('/'); setShowDrawer(false); } },
+                    { icon:Icons.ClipboardList, label:'訂單紀錄', desc:'查看歷史訂單', color:'text-blue-500 bg-blue-50', action:()=>{ navigate('/orders'); setShowDrawer(false); } },
+                    { icon:Icons.Gift, label:'點數兌換', desc:`持有 ${user?.points||0} 點`, color:'text-orange-500 bg-orange-50', action:()=>{ navigate('/redeem'); setShowDrawer(false); } },
+                    { icon:Icons.ShoppingBag, label:'購物說明', desc:'付款·取貨·退換', color:'text-purple-500 bg-purple-50', action:()=>{ navigate('/instructions'); setShowDrawer(false); } },
+                    { icon:Icons.ShoppingCart, label:'購物車', desc:`${cart?.reduce((a,c)=>a+c.quantity,0)||0} 件商品`, color:'text-pink-500 bg-pink-50', action:()=>{ navigate('/cart'); setShowDrawer(false); } },
                   ].map((item,i) => (
                     <button key={i} onClick={item.action} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${item.color}`}><item.icon className="w-5 h-5" /></div>
-                      <span className="font-medium text-gray-700">{item.label}</span>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${item.color}`}><item.icon className="w-5 h-5" /></div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-700 text-sm">{item.label}</div>
+                        <div className="text-xs text-gray-400">{item.desc}</div>
+                      </div>
                       <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
                     </button>
                   ))}
@@ -975,16 +1125,22 @@
                       if (typeof liff !== 'undefined' && liff.isInClient()) { liff.openWindow({ url:`https://line.me/R/ti/p/@${lineOaId}`, external:true }); }
                       else { window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank'); }
                     }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-green-600 bg-green-50"><Icons.HelpCircle className="w-5 h-5" /></div>
-                      <span className="font-medium text-gray-700">聯絡客服</span>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-green-600 bg-green-50 flex-shrink-0"><Icons.HelpCircle className="w-5 h-5" /></div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-700 text-sm">聯絡客服</div>
+                        <div className="text-xs text-gray-400">LINE 即時諮詢</div>
+                      </div>
                       <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180 ml-auto" />
                     </button>
                   </div>
                   {ADMIN_IDS.includes(user?.lineId) && (
                     <div className="border-t border-gray-100 my-2 pt-2">
                       <button onClick={() => { navigate('/admin'); setShowDrawer(false); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-purple-600 bg-purple-50"><Icons.ShieldCheck className="w-5 h-5" /></div>
-                        <span className="font-medium text-purple-700 font-bold">管理員後台</span>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-purple-600 bg-purple-50 flex-shrink-0"><Icons.ShieldCheck className="w-5 h-5" /></div>
+                        <div className="flex-1 text-left">
+                          <div className="font-medium text-purple-700 font-bold text-sm">管理員後台</div>
+                          <div className="text-xs text-purple-400">訂單·商品·設定</div>
+                        </div>
                         <Icons.ArrowLeft className="w-4 h-4 text-purple-300 rotate-180 ml-auto" />
                       </button>
                     </div>
