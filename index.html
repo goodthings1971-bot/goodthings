@@ -46,10 +46,11 @@
     };
   </script>
   <div id="root">
-    <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#fefce8;color:#f97316;font-weight:bold;font-family:sans-serif;">
-      載入中... (Loading...)
+    <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#fefce8;">
+      <div style="width:48px;height:48px;border:4px solid #d9f99d;border-top-color:#65a30d;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
     </div>
   </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   <script type="text/babel">
     console.log('Step 1: Script started');
     if (typeof React === 'undefined') console.error('React missing');
@@ -65,7 +66,7 @@
     // --- 重要設定 ---
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxG9xUAxbLvWf6fP9solDNtHgHJ8BV3PpMZwYwhXcl7T7BYQ10cU1c3VLL3yFV6ZNvF/exec';
     const LIFF_ID = '2009248623-E3UOP9Mc';
-    const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13'];
+    const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13', 'Ub5247090bdb3197a728d4da7e4034c3d', 'U80596001d501a185268e3f79663767b0'];
 
     // --- 轉帳資訊 ---
     const TRANSFER_INFO = [
@@ -144,6 +145,7 @@
       Menu:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
       X:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
       Check:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
+      Tag:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l7.58-7.58a1 1 0 0 0 0-1.42z"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg>,
     };
 
     // --- Dialog Context ---
@@ -253,7 +255,8 @@
       const cartTotal = cart.reduce((t, i) => i.isRedemption ? t : t + i.price * i.quantity, 0);
       const pointsUsed = cart.reduce((t, i) => (i.isRedemption && i.redeemPoints) ? t + i.redeemPoints * i.quantity : t, 0);
       const isFreeShipping = settings?.freeShippingThreshold ? cartTotal >= settings.freeShippingThreshold : false;
-      const shippingFee = isFreeShipping ? 0 : (settings?.shippingFee || 60);
+      const shippingFee = isFreeShipping ? 0 : (settings?.shippingFee || 100);   // 宅配運費
+      const cvsFee = isFreeShipping ? 0 : (settings?.cvsFee || 60);              // 超商運費
 
       if (isLoading) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-lime-600">
@@ -264,7 +267,7 @@
       return (
         <AppContext.Provider value={{
           cart, addToCart, updateQuantity, clearCart: () => setCart([]), cartTotal,
-          user, setUser, settings, shippingFee, isFreeShipping, pointsUsed,
+          user, setUser, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed,
           redeemableProducts, allProducts,
           updateUserProfile: (p) => { const nu = { ...user, ...p }; setUser(nu); api.updateUserProfile(nu); },
           redeemItem: (p) => {
@@ -413,6 +416,7 @@
                   {[
                     { icon: Icons.ClipboardList, label: '訂單紀錄', desc: '查看歷史訂單', color: 'text-lime-600 bg-lime-50', action: () => { navigate('/orders'); setShowDrawer(false); } },
                     { icon: Icons.Gift, label: '點數兌換', desc: `目前 ${user?.points||0} 點`, color: 'text-orange-500 bg-orange-50', action: () => { navigate('/redeem'); setShowDrawer(false); } },
+                    { icon: Icons.Tag, label: '活動優惠券', desc: '限時領取活動券', color: 'text-rose-500 bg-rose-50', action: () => { navigate('/campaigns'); setShowDrawer(false); } },
                     { icon: Icons.ShoppingBag, label: '購物說明', desc: '付款·取貨·退換貨', color: 'text-blue-500 bg-blue-50', action: () => { navigate('/instructions'); setShowDrawer(false); } },
                     { icon: Icons.User, label: '會員中心', desc: '個人資料·優惠券', color: 'text-purple-500 bg-purple-50', action: () => { navigate('/profile'); setShowDrawer(false); } },
                   ].map((item, i) => (
@@ -618,7 +622,7 @@
     // 頁面：購物車
     // =====================================================
     const Cart = () => {
-      const { cart, updateQuantity, clearCart, cartTotal, user, settings, shippingFee, isFreeShipping, pointsUsed } = useAppContext();
+      const { cart, updateQuantity, clearCart, cartTotal, user, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed } = useAppContext();
       const { showAlert } = useDialog();
       const navigate = useNavigate();
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -631,7 +635,11 @@
       const [completedOrderId, setCompletedOrderId] = useState('');
       const [copiedBank, setCopiedBank] = useState('');
       let discountAmount = selectedCoupon ? selectedCoupon.value : 0;
-      const total = cartTotal + (deliveryMethod==='shipping' ? (isFreeShipping?0:shippingFee) : 0) - discountAmount;
+      // 依取貨方式套用對應運費
+      const currentShippingFee = deliveryMethod === 'shipping' ? (isFreeShipping ? 0 : shippingFee)
+                                : deliveryMethod === 'cvs' ? (isFreeShipping ? 0 : cvsFee)
+                                : 0;
+      const total = cartTotal + currentShippingFee - discountAmount;
       const pointsEarned = Math.floor(cartTotal / (settings?.pointRatio || 100));
       const freeShippingDiff = (settings?.freeShippingThreshold || 1000) - cartTotal;
       const availableCoupons = (user?.coupons||[]).filter(c => {
@@ -657,14 +665,14 @@
             address:deliveryMethod==='shipping'?formData.address:(deliveryMethod==='cvs'?`${cvsType} ${formData.storeName}`:`店面取貨`) },
           items:cart, total, pointsUsed, pointsEarned, discount:discountAmount,
           deliveryMethod, paymentMethod,
-          shippingFee:deliveryMethod==='shipping'?(isFreeShipping?0:shippingFee):0,
+          shippingFee: currentShippingFee,
           status:'Pending', createdAt:new Date().toISOString()
         };
         try {
           await api.submitOrder(order);
           const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
           const paymentLabel = paymentMethod==='transfer' ? '轉帳付款' : deliveryMethod==='pickup' ? '門市付款' : '貨到付款';
-          const shippingText = deliveryMethod==='shipping' ? (isFreeShipping ? '免運費' : `NT$${shippingFee}`) : '免運費';
+          const shippingText = currentShippingFee === 0 ? '免運費' : `NT$${currentShippingFee}`;
           const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
           const itemLines = cart.map((item, idx) => {
             const vt = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
@@ -855,7 +863,7 @@
             </div>
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-2">
               <div className="flex justify-between text-gray-600"><span>小計</span><span>NT${cartTotal}</span></div>
-              <div className="flex justify-between text-gray-600"><span>運費</span><span>{deliveryMethod==='shipping'?(isFreeShipping?'免運費':`NT$${shippingFee}`):'免運費'}</span></div>
+              <div className="flex justify-between text-gray-600"><span>運費</span><span>{currentShippingFee === 0 ? '免運費' : `NT$${currentShippingFee}`}</span></div>
               {discountAmount>0 && <div className="flex justify-between text-orange-500"><span>優惠券折抵</span><span>-NT${discountAmount}</span></div>}
               {pointsEarned>0 && <div className="flex justify-between text-orange-500 font-bold"><span>預計獲得點數</span><span>+{pointsEarned} 點</span></div>}
               <div className="border-t pt-2 flex justify-between font-bold text-lg text-gray-800"><span>總金額</span><span>NT${total}</span></div>
@@ -1106,6 +1114,7 @@
                     { icon:Icons.Home, label:'首頁', desc:'逛商品', color:'text-lime-600 bg-lime-50', action:()=>{ navigate('/'); setShowDrawer(false); } },
                     { icon:Icons.ClipboardList, label:'訂單紀錄', desc:'查看歷史訂單', color:'text-blue-500 bg-blue-50', action:()=>{ navigate('/orders'); setShowDrawer(false); } },
                     { icon:Icons.Gift, label:'點數兌換', desc:`持有 ${user?.points||0} 點`, color:'text-orange-500 bg-orange-50', action:()=>{ navigate('/redeem'); setShowDrawer(false); } },
+                    { icon:Icons.Tag, label:'活動優惠券', desc:'限時領取活動券', color:'text-rose-500 bg-rose-50', action:()=>{ navigate('/campaigns'); setShowDrawer(false); } },
                     { icon:Icons.ShoppingBag, label:'購物說明', desc:'付款·取貨·退換', color:'text-purple-500 bg-purple-50', action:()=>{ navigate('/instructions'); setShowDrawer(false); } },
                     { icon:Icons.ShoppingCart, label:'購物車', desc:`${cart?.reduce((a,c)=>a+c.quantity,0)||0} 件商品`, color:'text-pink-500 bg-pink-50', action:()=>{ navigate('/cart'); setShowDrawer(false); } },
                   ].map((item,i) => (
@@ -1867,9 +1876,12 @@
                     <h3 className="font-bold text-lg">商店設定</h3>
                     {[
                       {key:'storeName',label:'店名',type:'text'},
-                      {key:'shippingFee',label:'運費',type:'number'},
-                      {key:'freeShippingThreshold',label:'免運門檻',type:'number'},
-                      {key:'pointRatio',label:'點數累積金額 (多少元1點)',type:'number'},
+                      {key:'shippingFee',label:'🚚 宅配運費 (元)',type:'number'},
+                      {key:'cvsFee',label:'🏬 超商取貨運費 (元)',type:'number'},
+                      {key:'freeShippingThreshold',label:'免運費門檻 (元)',type:'number'},
+                      {key:'pointRatio',label:'點數累積金額 (多少元得1點)',type:'number'},
+                      {key:'birthdayCouponValue',label:'🎂 生日券折扣金額 (元)',type:'number'},
+                      {key:'birthdayCouponMinSpend',label:'🎂 生日券最低消費 (元)',type:'number'},
                       {key:'storeAddress',label:'門市地址',type:'text'},
                       {key:'storePhone',label:'門市電話',type:'text'},
                       {key:'marqueeText',label:'跑馬燈文字',type:'text'},
@@ -1898,6 +1910,157 @@
     };
 
     // =====================================================
+    // 頁面：活動優惠券領取
+    // =====================================================
+    const Campaigns = () => {
+      const { user, setUser } = useAppContext();
+      const { showAlert } = useDialog();
+      const navigate = useNavigate();
+      const [campaigns, setCampaigns] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [claiming, setClaiming] = useState('');
+
+      useEffect(() => {
+        api.get('getCampaigns').then(data => {
+          if (Array.isArray(data)) {
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+            setCampaigns(data.filter(c => {
+              const start = c['開始日期'] ? String(c['開始日期']).substring(0,10) : '';
+              const end = c['結束日期'] ? String(c['結束日期']).substring(0,10) : '';
+              if (start && today < start) return false;
+              if (end && today > end) return false;
+              if (Number(c['剩餘數量']) <= 0) return false;
+              return true;
+            }));
+          }
+          setLoading(false);
+        }).catch(() => setLoading(false));
+      }, []);
+
+      const handleClaim = async (campName) => {
+        if (!user || user.lineId === 'guest') { showAlert('請先登入 LINE 才能領取優惠券'); return; }
+        setClaiming(campName);
+        try {
+          const res = await api.post('claimCampaignCoupon', { lineId: user.lineId, campaignName: campName });
+          if (res?.success) {
+            showAlert(`🎉 成功領取「${campName}」優惠券！\n已存入您的優惠券包`);
+            setUser(prev => ({ ...prev, coupons: [...(prev?.coupons||[]), res.coupon] }));
+            setCampaigns(prev => prev.map(c => c['活動名稱'] === campName ? { ...c, '剩餘數量': Number(c['剩餘數量']) - 1 } : c));
+          } else {
+            showAlert(res?.error || '領取失敗');
+          }
+        } catch(e) { showAlert('發生錯誤，請稍後再試'); }
+        finally { setClaiming(''); }
+      };
+
+      const isAlreadyClaimed = (campName) => {
+        return (user?.coupons || []).some(c => c.campaignId === campName);
+      };
+
+      const getDiscountLabel = (camp) => {
+        const type = camp['折扣類型'];
+        const val = Number(camp['折扣值']);
+        const min = Number(camp['最低消費']) || 0;
+        if (type === 'discount') {
+          const pct = Math.round(val * 100);
+          return { main: `打 ${pct} 折`, sub: min > 0 ? `消費滿 NT$${min} 適用` : '全品項適用' };
+        } else {
+          return { main: `折 NT$${val}`, sub: min > 0 ? `消費滿 NT$${min} 可折抵` : '全品項適用' };
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-50 pb-24 font-sans">
+          <div className="bg-gradient-to-br from-rose-500 to-orange-400 text-white p-6 pb-12 rounded-b-[3rem] shadow-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10"></div>
+            <div className="absolute bottom-0 left-0 w-28 h-28 bg-white/10 rounded-full -ml-10 mb-0"></div>
+            <div className="flex items-center gap-3 relative z-10">
+              <button onClick={() => navigate(-1)} className="p-2 rounded-xl bg-white/20"><Icons.ArrowLeft className="w-5 h-5" /></button>
+              <div>
+                <h1 className="text-2xl font-black">🎁 活動優惠券</h1>
+                <p className="text-rose-100 text-sm mt-0.5">限時領取，數量有限</p>
+              </div>
+            </div>
+            {user && (
+              <div className="mt-4 bg-white/20 rounded-2xl p-3 flex items-center gap-3 relative z-10">
+                <img src={user.pictureUrl||'https://via.placeholder.com/32'} className="w-9 h-9 rounded-full border-2 border-white/40" referrerPolicy="no-referrer" />
+                <div>
+                  <div className="text-white font-bold text-sm">{user.name}</div>
+                  <div className="text-rose-100 text-xs">已持有 {(user.coupons||[]).filter(c=>c.type==='campaign').length} 張活動券</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="px-4 -mt-6 relative z-10 space-y-4 pb-6">
+            {loading ? (
+              <div className="text-center py-16">
+                <div className="w-10 h-10 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin mx-auto"></div>
+              </div>
+            ) : campaigns.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+                <div className="text-5xl mb-4">🎟️</div>
+                <p className="text-gray-500 font-bold">目前沒有進行中的活動</p>
+                <p className="text-gray-400 text-sm mt-1">請期待下次活動！</p>
+              </div>
+            ) : (
+              campaigns.map((camp, i) => {
+                const discountInfo = getDiscountLabel(camp);
+                const claimed = isAlreadyClaimed(camp['活動名稱']);
+                const remaining = Number(camp['剩餘數量']);
+                const total = Number(camp['總數量']) || 1;
+                const pct = Math.min(100, Math.round((remaining / total) * 100));
+                const endDate = camp['結束日期'] ? String(camp['結束日期']).substring(0,10) : '';
+                const applicable = String(camp['適用商品'] || 'ALL').trim();
+                const applicableLabel = applicable === 'ALL' ? '全品項(含兌換)' : applicable === 'NOALL' ? '全品項(不含兌換)' : `指定商品`;
+
+                return (
+                  <div key={i} className={`bg-white rounded-2xl shadow-sm overflow-hidden border-2 transition-all ${claimed ? 'border-gray-200 opacity-70' : 'border-rose-100'}`}>
+                    {/* 頂部色帶 */}
+                    <div className={`h-1.5 ${claimed ? 'bg-gray-200' : pct > 50 ? 'bg-rose-400' : pct > 20 ? 'bg-orange-400' : 'bg-red-500'}`}
+                      style={{ width: `${pct}%`, transition: 'width 0.5s ease' }}></div>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-black text-gray-800 text-lg">{camp['活動名稱']}</h3>
+                          {camp['活動說明'] && <p className="text-gray-500 text-xs mt-0.5">{camp['活動說明']}</p>}
+                        </div>
+                        <div className={`text-center px-3 py-2 rounded-xl ml-3 flex-shrink-0 ${claimed ? 'bg-gray-100' : 'bg-rose-50'}`}>
+                          <div className={`text-xl font-black ${claimed ? 'text-gray-400' : 'text-rose-600'}`}>{discountInfo.main}</div>
+                          <div className="text-xs text-gray-400">優惠</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-4">
+                        <div className="bg-gray-50 rounded-lg p-2"><span className="text-gray-400">條件</span><div className="font-bold text-gray-700 mt-0.5">{discountInfo.sub}</div></div>
+                        <div className="bg-gray-50 rounded-lg p-2"><span className="text-gray-400">適用</span><div className="font-bold text-gray-700 mt-0.5">{applicableLabel}</div></div>
+                        {endDate && <div className="bg-gray-50 rounded-lg p-2"><span className="text-gray-400">截止</span><div className="font-bold text-gray-700 mt-0.5">{endDate}</div></div>}
+                        <div className={`rounded-lg p-2 ${remaining < 10 ? 'bg-red-50' : 'bg-gray-50'}`}>
+                          <span className="text-gray-400">剩餘</span>
+                          <div className={`font-bold mt-0.5 ${remaining < 10 ? 'text-red-600' : 'text-gray-700'}`}>{remaining} 張{remaining < 10 ? ' ⚡快搶' : ''}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleClaim(camp['活動名稱'])}
+                        disabled={claimed || claiming === camp['活動名稱']}
+                        className={`w-full py-3 rounded-xl font-black text-sm transition-all ${
+                          claimed ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : claiming === camp['活動名稱'] ? 'bg-rose-300 text-white'
+                          : 'bg-gradient-to-r from-rose-500 to-orange-400 text-white shadow-lg shadow-rose-200 active:scale-95'
+                        }`}>
+                        {claimed ? '✅ 已領取' : claiming === camp['活動名稱'] ? '領取中...' : '🎁 立即領取'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <BottomNav active="profile" />
+        </div>
+      );
+    };
+
+    // =====================================================
     // App Root
     // =====================================================
     const App = () => (
@@ -1913,6 +2076,7 @@
                 <Route path="/orders" element={<OrderHistory />} />
                 <Route path="/instructions" element={<Instructions />} />
                 <Route path="/redeem" element={<Redeem />} />
+                <Route path="/campaigns" element={<Campaigns />} />
                 <Route path="/admin" element={<AdminDashboard />} />
               </Routes>
             </HashRouter>
