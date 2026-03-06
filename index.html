@@ -146,6 +146,7 @@
       X:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
       Check:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
       Tag:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.42 0l7.58-7.58a1 1 0 0 0 0-1.42z"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg>,
+      Search:(p)=><svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
     };
 
     // --- Dialog Context ---
@@ -350,7 +351,6 @@
       "連江縣":{"南竿鄉":"209","北竿鄉":"210","莒光鄉":"211","東引鄉":"212"}
     };
     const TaiwanAddressSelector = ({ value, onChange }) => {
-      // Parse existing value: "郵遞區號 縣市 鄉鎮區 地址"
       const parseAddr = (v) => {
         if (!v) return { city:'', district:'', detail:'' };
         const m = v.match(/^(\d{3,6})?\s*([^\s]+[縣市])\s*([^\s]+[區鎮鄉市])?\s*(.*)$/);
@@ -361,6 +361,18 @@
       const [city, setCity] = useState(parsed.city);
       const [district, setDistrict] = useState(parsed.district);
       const [detail, setDetail] = useState(parsed.detail);
+
+      // ✅ 當 value prop 從外部變動時（例如預填會員地址），重新解析並同步 state
+      const prevValue = React.useRef(value);
+      useEffect(() => {
+        if (value !== prevValue.current) {
+          prevValue.current = value;
+          const p = parseAddr(value);
+          setCity(p.city);
+          setDistrict(p.district);
+          setDetail(p.detail);
+        }
+      }, [value]);
 
       const cities = Object.keys(TW_DISTRICTS);
       const districts = city && TW_DISTRICTS[city] ? Object.keys(TW_DISTRICTS[city]) : [];
@@ -451,12 +463,25 @@
       const [iconSize, setIconSize] = useState('M');
       const [showSizeMenu, setShowSizeMenu] = useState(false);
       const [showDrawer, setShowDrawer] = useState(false);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [showSearch, setShowSearch] = useState(false);
+      const searchInputRef = React.useRef(null);
       // ✅ 優化：直接用 AppContext 快取的商品，避免重複 API 呼叫
       const products = allProducts;
       useEffect(() => {
         api.fetchCategories().then(c => c && setCats(c));
       }, []);
-      const filtered = activeCat === 'all' ? products : products.filter(p => p.categoryId === activeCat);
+      const filtered = React.useMemo(() => {
+        let list = activeCat === 'all' ? products : products.filter(p => p.categoryId === activeCat);
+        if (searchQuery.trim()) {
+          const q = searchQuery.trim().toLowerCase();
+          list = list.filter(p =>
+            (p.name||'').toLowerCase().includes(q) ||
+            (p.description||'').toLowerCase().includes(q)
+          );
+        }
+        return list;
+      }, [products, activeCat, searchQuery]);
       const getGridClass = (s) => ({ 'XL':'grid-cols-1','L':'grid-cols-2','M':'grid-cols-3','S':'grid-cols-4','XS':'grid-cols-5' }[s] || 'grid-cols-3');
       const isAdmin = user && ADMIN_IDS.includes(user.lineId);
       return (
@@ -596,36 +621,68 @@
                 <div className="animate-marquee inline-block px-4">{settings.marqueeText}</div>
               </div>
             )}
-            <div className="px-5 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                {/* 漢堡選單按鈕 */}
-                <button onClick={() => setShowDrawer(true)} className="p-1.5 rounded-lg bg-lime-600/50 mr-1">
-                  <Icons.Menu className="w-5 h-5" />
-                </button>
-                <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-lime-600"><Icons.Zap size={18} fill="currentColor" /></div>
-                <h1 className="font-black text-xl tracking-wide">{settings?.storeName || '美好的事'}</h1>
+            {showSearch ? (
+              <div className="px-4 py-3 flex items-center gap-2">
+                <div className="flex-1 flex items-center bg-white/95 rounded-2xl px-3 py-2.5 gap-2 shadow-inner">
+                  <Icons.Search className="w-4 h-4 text-lime-500 flex-shrink-0" />
+                  <input ref={searchInputRef} type="text" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
+                    placeholder="搜尋商品名稱或描述..." autoFocus
+                    className="flex-1 text-gray-800 text-sm outline-none bg-transparent placeholder-gray-400" />
+                  {searchQuery && <button onClick={()=>setSearchQuery('')} className="text-gray-400 p-0.5"><Icons.X className="w-4 h-4" /></button>}
+                </div>
+                <button onClick={()=>{setShowSearch(false);setSearchQuery('');}} className="text-white/90 text-sm font-bold flex-shrink-0 px-1">取消</button>
               </div>
-              <div className="flex items-center gap-2">
-                <Link to="/cart" className="relative p-2"><Icons.ShoppingCart size={24} /></Link>
+            ) : (
+              <div className="px-5 py-4 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowDrawer(true)} className="p-1.5 rounded-lg bg-lime-600/50 mr-1">
+                    <Icons.Menu className="w-5 h-5" />
+                  </button>
+                  <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-lime-600"><Icons.Zap size={18} fill="currentColor" /></div>
+                  <h1 className="font-black text-xl tracking-wide">{settings?.storeName || '美好的事'}</h1>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={()=>{setShowSearch(true);setTimeout(()=>searchInputRef.current?.focus(),80);}}
+                    className="p-2 bg-lime-600/50 rounded-xl active:scale-90 transition-transform">
+                    <Icons.Search className="w-5 h-5" />
+                  </button>
+                  <Link to="/cart" className="relative p-2"><Icons.ShoppingCart size={24} /></Link>
+                </div>
               </div>
-            </div>
-            <div className="px-4 pb-4 overflow-x-auto no-scrollbar flex gap-2">
-              <button onClick={() => setActiveCat('all')} className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1.5 ${activeCat==='all'?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>
-                全部商品
-              </button>
-              {cats.map(c => (
-                <button key={c.id} onClick={() => setActiveCat(c.id)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1.5 ${activeCat===c.id?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>
-                  {c.iconUrl && <img src={c.iconUrl} className="w-4 h-4 rounded-sm object-cover" referrerPolicy="no-referrer" onError={e=>e.target.style.display='none'} />}
-                  {c.name}&nbsp;&nbsp;
+            )}
+            {!showSearch && (
+              <div className="px-4 pb-4 overflow-x-auto no-scrollbar flex gap-2">
+                <button onClick={() => setActiveCat('all')} className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1.5 ${activeCat==='all'?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>
+                  全部商品
                 </button>
-              ))}
-            </div>
+                {cats.map(c => (
+                  <button key={c.id} onClick={() => setActiveCat(c.id)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1.5 ${activeCat===c.id?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>
+                    {c.iconUrl && <img src={c.iconUrl} className="w-4 h-4 rounded-sm object-cover" referrerPolicy="no-referrer" onError={e=>e.target.style.display='none'} />}
+                    {c.name}&nbsp;&nbsp;
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="p-4">
-            <div className={`grid gap-4 ${getGridClass(iconSize)}`}>
-              {filtered.map(p => <ProductCard key={p.id} product={p} />)}
-            </div>
+            {searchQuery.trim() && (
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm text-gray-500">搜尋「<span className="font-bold text-lime-600">{searchQuery}</span>」，找到 {filtered.length} 件</span>
+                <button onClick={()=>setSearchQuery('')} className="text-xs text-gray-400 underline">清除</button>
+              </div>
+            )}
+            {filtered.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <div className="text-5xl mb-3">🔍</div>
+                <div className="font-bold text-gray-500">{searchQuery ? `找不到「${searchQuery}」相關商品` : '目前沒有商品'}</div>
+                {searchQuery && <button onClick={()=>setSearchQuery('')} className="mt-4 px-5 py-2 bg-lime-500 text-white rounded-xl font-bold text-sm">清除搜尋</button>}
+              </div>
+            ) : (
+              <div className={`grid gap-4 ${getGridClass(iconSize)}`}>
+                {filtered.map(p => <ProductCard key={p.id} product={p} />)}
+              </div>
+            )}
           </div>
           <div className="fixed bottom-24 right-4 z-30 flex flex-col items-end gap-2">
             {showSizeMenu && (
@@ -857,41 +914,38 @@
           setIsSubmitting(false); return;
         }
 
-        // ── 第二步：訂單成立後的後置動作（失敗不影響主流程）──
-        const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
-        const paymentLabel = paymentMethod==='transfer' ? '轉帳付款' : paymentMethod==='store' ? '門市付款' : '貨到付款';
-        const shippingText = currentShippingFee === 0 ? '免運費' : `NT$${currentShippingFee}`;
-        const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
-        const itemLines = cart.map((item, idx) => {
-          const vt = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
-          if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${vt} x${item.quantity}`;
-          return `  ${idx+1}. ${item.name}${vt} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
-        }).join('\n');
-        const transferNote = paymentMethod==='transfer' ? `\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！` : '';
-        const messageText = [
-          `🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',
-          `📦 商品明細：`,itemLines,'',
-          `💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,
-          `  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',
-          `🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',
-          `👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,
-          `  地址：${addressLine}`,`━━━━━━━━━━━━━━━`,
-          `感謝您的購買，我們會盡快為您處理！${transferNote}`
-        ].join('\n');
+        // ── 第二步：訂單成立後的後置動作（每項獨立 try-catch，失敗不影響主流程）──
 
-        // LIFF 通知（失敗不中斷）
-        if (typeof liff !== 'undefined' && liff.isInClient()) {
-          try { await liff.sendMessages([{ type:'text', text: messageText }]); } catch(e) {}
-        }
-        // 優惠券標記已使用（失敗不中斷）
+        // LIFF 訂單確認通知
+        try {
+          if (typeof liff !== 'undefined' && liff.isInClient()) {
+            const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
+            const paymentLabel = paymentMethod==='transfer' ? '轉帳付款' : paymentMethod==='store' ? '門市付款' : '超商取貨付款';
+            const shippingText = currentShippingFee === 0 ? '免運費' : `NT$${currentShippingFee}`;
+            const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
+            const itemLines = cart.map((item, idx) => {
+              const vt = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
+              if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${vt} x${item.quantity}`;
+              return `  ${idx+1}. ${item.name}${vt} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
+            }).join('\n');
+            const transferNote = paymentMethod==='transfer' ? '\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！' : '';
+            const msg = [`🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',`📦 商品明細：`,itemLines,'',`💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,`  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',`🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',`👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,`  地址：${addressLine}`,`━━━━━━━━━━━━━━━`,`感謝您的購買！${transferNote}`].join('\n');
+            await liff.sendMessages([{ type:'text', text: msg }]);
+          }
+        } catch(e) { console.warn('LIFF msg failed', e); }
+
+        // ✅ 優惠券標記已使用（前端 state + 後端雙重確保，不用 spread 避免相容性問題）
         if (selectedCoupon && user) {
           try {
-            const updatedCoupons = (user.coupons||[]).map(c =>
-              c.id === selectedCoupon.id ? {...c, usedAt: new Date().toISOString().split('T')[0], usedOrderId: orderId} : c
-            );
-            const updatedUser = {...user, coupons: updatedCoupons};
-            setUser(updatedUser);
-            await api.updateUserProfile(updatedUser);
+            const today = new Date().toISOString().split('T')[0];
+            const updatedCoupons = (user.coupons||[]).map(c => {
+              if (c.id === selectedCoupon.id) {
+                return Object.assign({}, c, { usedAt: today, usedOrderId: orderId });
+              }
+              return c;
+            });
+            setUser(Object.assign({}, user, { coupons: updatedCoupons }));
+            await api.post('markCouponUsed', { lineId: user.lineId, couponId: selectedCoupon.id, orderId });
           } catch(e) { console.warn('Coupon mark failed:', e); }
         }
 
@@ -1442,7 +1496,7 @@
                 {e:'🛍️',l:'購買說明',a:()=>navigate('/instructions')},
                 {e:'💬',l:'聯絡客服',a:()=>{const id='705jtuuh';if(typeof liff!=='undefined'&&liff.isInClient())liff.openWindow({url:`https://line.me/R/ti/p/@${id}`,external:true});else window.open(`https://line.me/R/ti/p/@${id}`,'_blank');}},
                 {e:'🔗',l:'分享商店',a:()=>{const url=window.location.href.split('#')[0];if(typeof liff!=='undefined'&&liff.isInClient()&&liff.isApiAvailable('shareTargetPicker')){liff.shareTargetPicker([{type:'text',text:`✨ 推薦你來逛逛！\n${url}`}]);}else{try{navigator.share({title:'推薦好店',url});}catch(e){navigator.clipboard?.writeText(url);showAlert('連結已複製！');}}  }},
-                {e:'⭐',l:'我的評價',a:()=>showAlert('評價功能即將上線，敬請期待！')},
+                {e:'⭐',l:'我的評價',a:()=>navigate('/reviews')},
               ].map((item,i)=>(
                 <button key={i} onClick={item.a}
                   className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
@@ -2801,6 +2855,127 @@
     };
 
     // =====================================================
+    // =====================================================
+    // 頁面：我的評價
+    // =====================================================
+    const MyReviews = () => {
+      const { user } = useAppContext();
+      const { showAlert } = useDialog();
+      const navigate = useNavigate();
+      const [orders, setOrders] = useState([]);
+      const [reviewMap, setReviewMap] = useState({});
+      const [loading, setLoading] = useState(true);
+      const [submitting, setSubmitting] = useState('');
+
+      useEffect(() => {
+        if (!user || user.lineId === 'guest') { setLoading(false); return; }
+        Promise.all([
+          api.getUserOrders(user.lineId),
+          api.get('getUserReviews', { lineId: user.lineId })
+        ]).then(([o, r]) => {
+          if (o && !o.error) setOrders(o.filter(ord => ord.status === 'Completed'));
+          if (Array.isArray(r)) {
+            const map = {};
+            r.forEach(rv => { map[rv.key] = rv; });
+            setReviewMap(map);
+          }
+          setLoading(false);
+        }).catch(() => setLoading(false));
+      }, [user?.lineId]);
+
+      const handleSubmit = async (key, orderId, itemId, itemName, rating, comment) => {
+        if (!rating) { showAlert('請先選擇星級評分'); return; }
+        setSubmitting(key);
+        try {
+          const r = await api.post('submitReview', { lineId:user.lineId, userName:user.name, orderId, itemId:String(itemId||itemName), itemName, rating, comment });
+          if (r?.success) {
+            setReviewMap(prev => Object.assign({}, prev, { [key]: { rating, comment, submittedAt: new Date().toISOString().split('T')[0] } }));
+            showAlert('✅ 謝謝您的評價！');
+          } else showAlert('評價失敗：' + (r?.error||''));
+        } catch(e) { showAlert('送出失敗，請稍後再試'); }
+        setSubmitting('');
+      };
+
+      // 每個商品的評價卡片（獨立元件，才能有自己的 state）
+      const ReviewCard = ({ order, item }) => {
+        const itemId = String(item.id || item.name);
+        const key = order.orderId + '_' + itemId;
+        const existing = reviewMap[key];
+        const [rating, setRating] = useState(0);
+        const [comment, setComment] = useState('');
+        const isMe = submitting === key;
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-4 pt-4 pb-3 border-b border-gray-50">
+              <div className="font-bold text-gray-800 text-sm">{item.name}{item.selectedVariant ? ` · ${item.selectedVariant}` : ''}</div>
+              <div className="text-xs text-gray-400 mt-0.5">訂單 {order.orderId} · {order.date ? new Date(order.date).toLocaleDateString('zh-TW') : ''}</div>
+            </div>
+            {existing ? (
+              <div className="p-4">
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex">{[1,2,3,4,5].map(s=><span key={s} className={`text-xl leading-none ${s<=existing.rating?'text-yellow-400':'text-gray-200'}`}>★</span>)}</div>
+                    <span className="text-xs text-gray-400">{existing.submittedAt}</span>
+                  </div>
+                  {existing.comment && <div className="text-sm text-gray-600">{existing.comment}</div>}
+                  <div className="text-xs text-green-600 font-bold">✅ 已評價</div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 space-y-3">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1.5">評分</div>
+                  <div className="flex gap-2">
+                    {[1,2,3,4,5].map(s => (
+                      <button key={s} onClick={()=>setRating(s)}
+                        className={`text-3xl leading-none transition-transform active:scale-90 ${s<=rating?'text-yellow-400':'text-gray-200'}`}>★</button>
+                    ))}
+                  </div>
+                </div>
+                <textarea value={comment} onChange={e=>setComment(e.target.value)}
+                  placeholder="分享使用心得（選填）..."
+                  className="w-full p-3 border border-gray-200 rounded-xl text-sm bg-gray-50 min-h-[72px] resize-none" />
+                <button onClick={()=>handleSubmit(key,order.orderId,item.id||item.name,item.name,rating,comment)}
+                  disabled={!rating||isMe}
+                  className="w-full py-2.5 bg-lime-600 text-white rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-40">
+                  {isMe ? '送出中...' : '送出評價'}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      const items = orders.flatMap(order =>
+        (order.content?.items||order.items||[]).filter(i=>!i.isRedemption).map(item=>({order,item}))
+      );
+
+      return (
+        <div className="min-h-screen bg-gray-50 pb-24">
+          <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white p-4 sticky top-0 z-10 shadow-md">
+            <div className="flex items-center gap-3">
+              <button onClick={()=>navigate('/profile')} className="p-1"><Icons.ArrowLeft className="w-6 h-6" /></button>
+              <h1 className="text-lg font-black flex-1">我的評價</h1>
+              <span className="text-yellow-100 text-sm">{items.filter(({order,item})=>!reviewMap[order.orderId+'_'+String(item.id||item.name)]).length} 件待評</span>
+            </div>
+          </div>
+          <div className="p-4 space-y-3">
+            {loading ? <div className="text-center py-16 text-gray-400">載入中...</div>
+              : items.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <div className="text-5xl mb-3">⭐</div>
+                  <div className="font-bold">尚無可評價的商品</div>
+                  <div className="text-sm mt-1">完成訂單後即可評價</div>
+                </div>
+              ) : items.map(({order,item},idx) => <ReviewCard key={idx} order={order} item={item} />)
+            }
+          </div>
+          <BottomNav active="profile" />
+        </div>
+      );
+    };
+
+    // =====================================================
     // App Root
     // =====================================================
     const App = () => (
@@ -2818,6 +2993,7 @@
                 <Route path="/redeem" element={<Redeem />} />
                 <Route path="/campaigns" element={<Campaigns />} />
                 <Route path="/my-coupons" element={<MyCoupons />} />
+                <Route path="/reviews" element={<MyReviews />} />
                 <Route path="/admin" element={<AdminDashboard />} />
               </Routes>
             </HashRouter>
