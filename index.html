@@ -650,47 +650,126 @@
     // =====================================================
     // 頁面：購物說明
     // =====================================================
-    const Instructions = () => (
+    const Instructions = () => {
+      const navigate = useNavigate();
+      return (
       <div className="min-h-screen bg-gray-50 pb-24 font-sans">
-        <div className="bg-lime-500 text-white p-6 pb-10 rounded-b-[3rem] shadow-lg mb-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-          <h1 className="text-2xl font-bold text-center relative z-10">購買說明</h1>
+        <div className="bg-gradient-to-br from-lime-500 to-emerald-600 text-white pt-14 pb-20 px-6 rounded-b-[3rem] shadow-xl relative overflow-hidden">
+          <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full"></div>
+          <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/10 rounded-full"></div>
+          <button onClick={() => navigate(-1)} className="absolute top-4 left-4 p-2 bg-white/20 rounded-xl backdrop-blur-sm"><Icons.ArrowLeft className="w-5 h-5" /></button>
+          <div className="relative z-10 text-center">
+            <div className="text-5xl mb-2">🛍️</div>
+            <h1 className="text-2xl font-black">購買說明</h1>
+            <p className="text-lime-100 text-sm mt-1">下單流程 · 付款 · 取貨 · 優惠</p>
+          </div>
         </div>
-        <div className="px-4 space-y-6 -mt-12 relative z-20">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600"><Icons.ShoppingBag size={18}/></div>
-              購物流程
-            </h2>
-            <div className="space-y-6 relative before:absolute before:left-[19px] before:top-2 before:h-[85%] before:w-0.5 before:bg-gray-100">
-              {['選購商品','確認購物車','填寫資料','完成訂單'].map((step,i) => (
-                <div key={i} className="relative flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-white text-lime-600 flex items-center justify-center font-bold z-10 border-4 border-lime-100 shadow-sm text-sm">{i+1}</div>
-                  <div className="bg-gray-50 p-3 rounded-xl flex-1 border border-gray-100"><h3 className="font-bold text-sm text-gray-700">{step}</h3></div>
+        <div className="px-4 -mt-10 relative z-10 space-y-4 pb-8">
+          {/* 購物流程 */}
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="bg-purple-50 px-5 py-4 flex items-center gap-3 border-b border-purple-100">
+              <div className="w-9 h-9 rounded-xl bg-purple-500 flex items-center justify-center shadow-md shadow-purple-200"><Icons.ShoppingBag className="w-5 h-5 text-white"/></div>
+              <h2 className="font-black text-gray-800">購物流程</h2>
+            </div>
+            <div className="p-5">
+              <div className="relative">
+                <div className="absolute left-5 top-5 bottom-5 w-0.5 bg-gradient-to-b from-lime-300 to-transparent"></div>
+                {[
+                  {e:'🔍',t:'瀏覽選購',d:'在首頁或分類中挑選喜歡的商品'},
+                  {e:'🛒',t:'加入購物車',d:'選擇規格後加入購物車'},
+                  {e:'📝',t:'填寫資料',d:'選取貨方式、付款方式，填收件資訊'},
+                  {e:'✅',t:'完成訂單',d:'確認結帳後等待出貨通知'},
+                ].map((s,i)=>(
+                  <div key={i} className="relative flex items-start gap-4 mb-4 last:mb-0">
+                    <div className="w-10 h-10 rounded-full bg-white border-4 border-lime-200 flex items-center justify-center text-lg z-10 shadow-sm flex-shrink-0">{s.e}</div>
+                    <div className="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="font-bold text-gray-800 text-sm">{s.t}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{s.d}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* 付款方式 */}
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="bg-blue-50 px-5 py-4 flex items-center gap-3 border-b border-blue-100">
+              <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shadow-md shadow-blue-200"><Icons.CreditCard className="w-5 h-5 text-white"/></div>
+              <h2 className="font-black text-gray-800">付款方式</h2>
+            </div>
+            <div className="p-5 space-y-3">
+              {[
+                {e:'💳',t:'轉帳付款',bg:'bg-amber-50 border-amber-100',tc:'text-amber-800',d:'ATM / 網路銀行 / 街口支付\n完成後請傳截圖給客服，確認後安排出貨'},
+                {e:'🏪',t:'超商取貨付款',bg:'bg-green-50 border-green-100',tc:'text-green-800',d:'選擇 7-ELEVEN 或全家後取貨付款\n收到手機簡訊後前往超商提供手機末3碼取貨'},
+                {e:'🏬',t:'門市付款',bg:'bg-orange-50 border-orange-100',tc:'text-orange-800',d:'選擇門市取貨時現場付款\n請至指定門市取貨時付款'},
+              ].map((p,i)=>(
+                <div key={i} className={`flex gap-3 p-4 rounded-2xl border ${p.bg}`}>
+                  <span className="text-2xl flex-shrink-0">{p.e}</span>
+                  <div>
+                    <div className={`font-bold text-sm ${p.tc}`}>{p.t}</div>
+                    <div className="text-xs text-gray-500 mt-1 whitespace-pre-line leading-relaxed">{p.d}</div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><Icons.CreditCard size={18}/></div>
-              付款方式
-            </h2>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
-                <Icons.Truck className="w-5 h-5 text-blue-500 mt-0.5" />
-                <div><div className="font-bold text-sm text-gray-800">貨到付款</div><div className="text-xs text-gray-500">取貨時再付款給物流人員</div></div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
-                <Icons.Store className="w-5 h-5 text-orange-500 mt-0.5" />
-                <div><div className="font-bold text-sm text-gray-800">店取付款</div><div className="text-xs text-gray-500">至實體門市取貨時付款</div></div>
-              </div>
+          {/* 取貨方式 */}
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="bg-green-50 px-5 py-4 flex items-center gap-3 border-b border-green-100">
+              <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center shadow-md shadow-green-200"><Icons.Truck className="w-5 h-5 text-white"/></div>
+              <h2 className="font-black text-gray-800">取貨方式</h2>
+            </div>
+            <div className="p-5 space-y-3">
+              {[
+                {e:'🚚',t:'宅配寄送',tag:'NT$100運費，滿額免運',d:'填寫詳細地址（需含門牌號碼），使用轉帳付款'},
+                {e:'🏪',t:'超商取貨',tag:'NT$60運費',d:'選 7-ELEVEN 或全家，輸入門市名稱，到店付款取貨'},
+                {e:'🏬',t:'門市取貨',tag:'免運費',d:'至指定門市取貨，店員確認後現場付款'},
+              ].map((m,i)=>(
+                <div key={i} className="flex gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                  <span className="text-2xl flex-shrink-0">{m.e}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-gray-800 text-sm">{m.t}</span>
+                      <span className="text-xs bg-lime-100 text-lime-700 px-2 py-0.5 rounded-full font-bold">{m.tag}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">{m.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* 點數與優惠 */}
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="bg-yellow-50 px-5 py-4 flex items-center gap-3 border-b border-yellow-100">
+              <div className="w-9 h-9 rounded-xl bg-yellow-400 flex items-center justify-center shadow-md shadow-yellow-200"><Icons.Gift className="w-5 h-5 text-white"/></div>
+              <h2 className="font-black text-gray-800">點數 & 優惠</h2>
+            </div>
+            <div className="p-5 space-y-2">
+              {['每消費滿額可獲得點數，累積後可兌換商品','生日當月可領取專屬生日禮優惠券','每日可抽一次每日好運優惠券','活動期間可限時領取活動優惠券'].map((t,i)=>(
+                <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                  <span className="text-lime-500 font-bold mt-0.5">✓</span><span>{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* 退換貨 */}
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="bg-red-50 px-5 py-4 flex items-center gap-3 border-b border-red-100">
+              <div className="w-9 h-9 rounded-xl bg-red-400 flex items-center justify-center shadow-md shadow-red-200"><Icons.HelpCircle className="w-5 h-5 text-white"/></div>
+              <h2 className="font-black text-gray-800">退換貨說明</h2>
+            </div>
+            <div className="p-5 text-sm text-gray-600 space-y-2 leading-relaxed">
+              <p>• 商品如有瑕疵或錯誤，請於收到後 <strong>7日內</strong> 聯繫客服</p>
+              <p>• 請保留原始包裝並附上訂單截圖</p>
+              <p>• 個人因素造成的損毀恕不受理退換</p>
+              <p>• 如有任何問題請透過 LINE 聯繫客服 🙏</p>
             </div>
           </div>
         </div>
         <BottomNav active="profile" />
       </div>
-    );
+      );
+    };
 
 
     // =====================================================
@@ -765,7 +844,13 @@
           status:'Pending', createdAt:new Date().toISOString()
         };
         try {
-          await api.submitOrder(order);
+          const res = await api.submitOrder(order);
+          if (!res || res.error) {
+            if (res?.errorType === 'PRODUCT_UNAVAILABLE') showAlert(`⚠️ 商品「${res.itemName}」已下架，請先從購物車移除再結帳`);
+            else if (res?.errorType === 'OUT_OF_STOCK') showAlert(`⚠️ ${res.error}`);
+            else showAlert('訂單送出失敗：' + (res?.error || '請稍後再試'));
+            setIsSubmitting(false); return;
+          }
           const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
           const paymentLabel = paymentMethod==='transfer' ? '轉帳付款' : deliveryMethod==='pickup' ? '門市付款' : '貨到付款';
           const shippingText = currentShippingFee === 0 ? '免運費' : `NT$${currentShippingFee}`;
@@ -1330,6 +1415,24 @@
                   </div>;
               })()}
             </div>
+            {/* 快速功能入口 */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                {e:'📋',l:'訂單紀錄',a:()=>navigate('/orders')},
+                {e:'🎟️',l:'我的優惠券',a:()=>navigate('/my-coupons')},
+                {e:'🎁',l:'點數兌換',a:()=>navigate('/redeem')},
+                {e:'🏷️',l:'活動優惠',a:()=>navigate('/campaigns')},
+                {e:'🛍️',l:'購買說明',a:()=>navigate('/instructions')},
+                {e:'💬',l:'聯絡客服',a:()=>{const id='705jtuuh';if(typeof liff!=='undefined'&&liff.isInClient())liff.openWindow({url:`https://line.me/R/ti/p/@${id}`,external:true});else window.open(`https://line.me/R/ti/p/@${id}`,'_blank');}},
+              ].map((item,i)=>(
+                <button key={i} onClick={item.a}
+                  className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                  <span className="text-2xl">{item.e}</span>
+                  <span className="text-xs font-bold text-gray-600">{item.l}</span>
+                </button>
+              ))}
+            </div>
+
             {/* 管理員入口 */}
             {isAdmin && (
               <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
@@ -1369,24 +1472,6 @@
               <div className="text-right mt-2">
                 <button onClick={() => { updateUserProfile({...user,wishlist:formData.wishlist}); showAlert('許願已送出！'); }} className="bg-lime-100 text-lime-700 px-4 py-1.5 rounded-full text-xs font-bold">送出許願</button>
               </div>
-            </div>
-            {/* 功能選單（訂單紀錄和購物說明已移至首頁主選單） */}
-            <div className="space-y-2">
-              <h3 className="font-bold text-gray-800 ml-1">功能選單</h3>
-              <button onClick={() => {
-                const lineOaId = '705jtuuh'; // LINE OA ID (不含@)
-                if (typeof liff !== 'undefined' && liff.isInClient()) {
-                  liff.openWindow({ url: `https://line.me/R/ti/p/@${lineOaId}`, external: true });
-                } else {
-                  window.open(`https://line.me/R/ti/p/@${lineOaId}`, '_blank');
-                }
-              }} className="w-full bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="bg-green-100 p-2 rounded-full"><Icons.HelpCircle className="w-5 h-5 text-green-500" /></div>
-                  <span className="text-gray-700 font-medium">聯絡客服</span>
-                </div>
-                <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
-              </button>
             </div>
           </div>
           <BottomNav active="profile" />
@@ -1706,6 +1791,9 @@
       // notify modal
       const [notifyModal, setNotifyModal] = useState(null); // {msg, onSend}
       const [copiedNotify, setCopiedNotify] = useState(false);
+      // report & adjust
+      const [salesReport, setSalesReport] = useState(null);
+      const [adjustTarget, setAdjustTarget] = useState(null); // {lineId, name, points}
 
       useEffect(() => {
         if (!user) return;
@@ -1742,6 +1830,11 @@
             const r = await api.get('getCampaignsAdmin', { adminId: user.lineId });
             if (Array.isArray(r)) setCampaigns(r);
             else setCampaigns([]);
+          } else if (currentTab==='report') {
+            const r = await api.get('getSalesReport', { adminId: user.lineId });
+            if (r && !r.error) setSalesReport(r);
+          } else if (currentTab==='broadcast') {
+            // broadcast 不需要預載資料
           } else if (currentTab==='inventory') {
             const r = await api.fetchProducts();
             if (r) {
@@ -1759,7 +1852,7 @@
         finally { setLoading(false); }
       };
 
-      // 通知選項 Modal
+      // 通知推播 Modal
       const NotifyModal = ({ msg, onClose }) => {
         const [copied, setCopied] = useState(false);
         const [sending, setSending] = useState(false);
@@ -1771,50 +1864,38 @@
         const sendViaLiff = async () => {
           setSending(true);
           try {
-            if (typeof liff === 'undefined' || !liff.isInClient()) {
-              showAlert('請在 LINE App 中開啟才能使用 LIFF 推播功能');
-              setSending(false); return;
-            }
-            if (liff.isApiAvailable('shareTargetPicker')) {
-              // LINE@ 官方 LIFF shareTargetPicker：可選擇推播對象（用戶/群組）
-              const result = await liff.shareTargetPicker([{ type: 'text', text: msg }], { isMultiple: false });
-              if (result?.status === 'success') { setSent(true); setTimeout(onClose, 1200); }
-              else { showAlert('已取消發送'); setSending(false); }
-            } else {
-              // 若不支援 shareTargetPicker，fallback 到 sendMessages（發到當前聊天）
-              await liff.sendMessages([{ type: 'text', text: msg }]);
-              setSent(true); setTimeout(onClose, 1200);
-            }
+            if (typeof liff === 'undefined') { showAlert('LIFF 尚未載入'); setSending(false); return; }
+            if (!liff.isInClient()) { showAlert('請在 LINE App 中開啟才能使用 LIFF 推播'); setSending(false); return; }
+            await liff.sendMessages([{ type: 'text', text: msg }]);
+            setSent(true);
+            setTimeout(onClose, 1500);
           } catch(e) {
-            console.error('LIFF push error:', e);
-            showAlert('LIFF 推播失敗，請改用手動複製發送');
+            console.error('LIFF sendMessages:', e);
+            showAlert('推播失敗，請改用手動複製後至 LINE 發送');
             setSending(false);
           }
         };
         return (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
-              <div className="bg-lime-600 p-4 text-white">
-                <h3 className="font-bold text-base">📣 發送通知給顧客</h3>
-                <p className="text-xs text-lime-100 mt-0.5">透過 LINE@ 官方 LIFF 推播功能發送</p>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+              <div className="bg-[#06C755] p-5 text-white text-center">
+                <div className="text-3xl mb-1">📲</div>
+                <h3 className="font-black text-lg">LINE 通知推播</h3>
+                <p className="text-green-100 text-xs mt-1">透過 LIFF 官方後台推播至顧客</p>
               </div>
               <div className="p-4">
-                <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-700 whitespace-pre-wrap font-mono mb-4 max-h-40 overflow-y-auto border border-gray-100">{msg}</div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-2xl p-3 text-xs text-gray-700 whitespace-pre-wrap font-mono mb-4 max-h-48 overflow-y-auto border border-gray-100 leading-relaxed">{msg}</div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
                   <button onClick={sendViaLiff} disabled={sending||sent}
-                    className={`py-3 rounded-xl font-bold text-sm flex flex-col items-center gap-0.5 transition-all ${sent?'bg-green-500 text-white':sending?'bg-gray-200 text-gray-400 cursor-wait':'bg-[#06C755] text-white active:scale-95'}`}>
-                    <span>{sent?'✅ 已發送':sending?'發送中...':'🚀 LIFF 推播'}</span>
-                    <span className="text-xs font-normal opacity-80">LINE@ 官方推播</span>
+                    className={`py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${sent?'bg-green-500 text-white':sending?'bg-gray-200 text-gray-400':'bg-[#06C755] text-white shadow-lg shadow-green-200'}`}>
+                    {sent ? '✅ 已推播' : sending ? '⏳ 推播中...' : '📲 LIFF 推播'}
                   </button>
                   <button onClick={copyMsg}
-                    className={`py-3 rounded-xl border-2 font-bold text-sm flex flex-col items-center gap-0.5 transition-all ${copied?'border-lime-400 bg-lime-50 text-lime-700':'border-gray-200 text-gray-600 active:scale-95'}`}>
-                    <span>{copied?'✅ 已複製':'📋 手動複製'}</span>
-                    <span className="text-xs font-normal opacity-70">複製後手動貼上</span>
+                    className={`py-3.5 rounded-2xl border-2 font-bold text-sm transition-all active:scale-95 ${copied?'border-lime-400 bg-lime-50 text-lime-700':'border-gray-200 text-gray-600'}`}>
+                    {copied ? '✅ 已複製' : '📋 複製訊息'}
                   </button>
                 </div>
-              </div>
-              <div className="px-4 pb-4">
-                <button onClick={onClose} className="w-full py-2 text-gray-400 text-sm">略過，不發送</button>
+                <button onClick={onClose} className="w-full py-2.5 text-gray-400 text-sm border-t border-gray-100">略過，不發送</button>
               </div>
             </div>
           </div>
@@ -1996,14 +2077,16 @@
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
               {[
-                {id:'dashboard',label:'總覽'},
-                {id:'orders',label:'訂單'},
-                {id:'redemptions',label:'兌換'},
-                {id:'users',label:'用戶'},
-                {id:'products',label:'商品'},
-                {id:'inventory',label:'庫存'},
-                {id:'campaigns',label:'活動券'},
-                {id:'settings',label:'設定'},
+                {id:'dashboard',label:'📊 總覽'},
+                {id:'orders',label:'📦 訂單'},
+                {id:'redemptions',label:'🎁 兌換'},
+                {id:'users',label:'👥 用戶'},
+                {id:'products',label:'🛍 商品'},
+                {id:'inventory',label:'📦 庫存'},
+                {id:'campaigns',label:'🎟 活動券'},
+                {id:'report',label:'📈 報表'},
+                {id:'broadcast',label:'📢 廣播'},
+                {id:'settings',label:'⚙️ 設定'},
               ].map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)}
                   className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${tab===t.id?'bg-white text-lime-600':'bg-lime-700 text-lime-100'}`}>{t.label}</button>
@@ -2084,24 +2167,53 @@
                 )}
                 {/* 用戶 */}
                 {tab==='users' && (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-3 bg-gray-50 border-b text-sm font-bold text-gray-500">共 {users.length} 位用戶</div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 text-gray-500 font-bold text-xs">
-                          <tr><th className="p-3">姓名</th><th className="p-3">電話</th><th className="p-3">生日</th><th className="p-3">點數</th></tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {users.map((u,idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
-                              <td className="p-3 font-medium">{u.name}</td>
-                              <td className="p-3 text-gray-500">{u.phone}</td>
-                              <td className="p-3 text-gray-500">{u.birthday}</td>
-                              <td className="p-3 text-lime-600 font-bold">{u.points||0}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  <div className="space-y-3">
+                    {/* 調整點數 Modal */}
+                    {adjustTarget && (
+                      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in p-6 space-y-4">
+                          <h3 className="font-black text-lg text-gray-800">✏️ 調整點數</h3>
+                          <div className="bg-gray-50 rounded-xl p-3 text-sm">
+                            <div className="font-bold text-gray-700">{adjustTarget.name}</div>
+                            <div className="text-gray-400 text-xs">目前點數：{adjustTarget.points} 點</div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">調整數量（正數=新增，負數=扣除）</label>
+                            <input type="number" id="adj-pts" defaultValue="0" className="w-full p-3 border rounded-xl text-center font-bold text-xl" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button onClick={()=>setAdjustTarget(null)} className="py-3 border border-gray-200 rounded-xl font-bold text-gray-500">取消</button>
+                            <button onClick={async()=>{
+                              const pts = Number(document.getElementById('adj-pts').value);
+                              if (isNaN(pts)||pts===0){showAlert('請輸入非零數值');return;}
+                              try {
+                                const r = await api.post('adjustUserPoints',{adminId:user.lineId,lineId:adjustTarget.lineId,points:pts,reason:'管理員手動調整'});
+                                if(r?.success){showAlert(`✅ ${r.name} 點數由 ${r.before} 調整為 ${r.after} 點`);setAdjustTarget(null);fetchTabData('users');}
+                                else showAlert('調整失敗：'+(r?.error||''));
+                              }catch(e){showAlert('調整失敗');}
+                            }} className="py-3 bg-lime-600 text-white rounded-xl font-bold shadow-md">確認調整</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="p-3 bg-gray-50 border-b text-sm font-bold text-gray-500">共 {users.length} 位會員</div>
+                      <div className="divide-y divide-gray-100">
+                        {users.map((u,idx) => (
+                          <div key={idx} className="p-3 flex items-center gap-3 hover:bg-gray-50">
+                            <div className="w-9 h-9 rounded-full bg-lime-100 flex items-center justify-center text-lime-600 font-bold text-sm flex-shrink-0">{(u.name||'?')[0]}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-gray-800 text-sm truncate">{u.name}</div>
+                              <div className="text-xs text-gray-400">{u.phone} {u.birthday?`· 🎂${u.birthday}`:''}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-lime-600 font-black text-sm">{u.points||0}pts</div>
+                              <button onClick={()=>setAdjustTarget({lineId:u.lineId,name:u.name,points:u.points||0})}
+                                className="p-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold">✏️</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2248,7 +2360,115 @@
                     })}
                   </div>
                 )}
-                {/* 設定 */}
+                {/* 📈 銷售報表 */}
+                {tab==='report' && (
+                  <div className="space-y-4">
+                    {!salesReport ? (
+                      <div className="text-center py-10 text-gray-400">
+                        <div className="text-4xl mb-2">📊</div>
+                        <div className="font-bold">載入報表中...</div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* 取貨方式分佈 */}
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">🚚 取貨方式收入統計</h3>
+                          <div className="grid grid-cols-3 gap-3">
+                            {[
+                              {k:'shipping',l:'宅配',e:'🚚',c:'bg-blue-50 text-blue-700'},
+                              {k:'cvs',l:'超商',e:'🏪',c:'bg-green-50 text-green-700'},
+                              {k:'pickup',l:'門市',e:'🏬',c:'bg-orange-50 text-orange-700'},
+                            ].map(d=>(
+                              <div key={d.k} className={`${d.c} rounded-xl p-3 text-center`}>
+                                <div className="text-xl mb-1">{d.e}</div>
+                                <div className="font-bold text-xs">{d.l}</div>
+                                <div className="font-black text-sm mt-1">NT${(salesReport.deliveryMap?.[d.k]||0).toLocaleString()}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* 月度收入 */}
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                          <h3 className="font-bold text-gray-800 mb-3">📅 月度收入（近12個月）</h3>
+                          <div className="space-y-2">
+                            {(salesReport.monthly||[]).map((m,i)=>{
+                              const maxVal = Math.max(...(salesReport.monthly||[]).map(x=>x.total), 1);
+                              const pct = Math.round((m.total/maxVal)*100);
+                              return (
+                                <div key={i} className="flex items-center gap-3">
+                                  <div className="text-xs text-gray-500 w-16 flex-shrink-0">{m.month}</div>
+                                  <div className="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-lime-400 to-lime-600 rounded-full" style={{width:`${pct}%`}}></div>
+                                  </div>
+                                  <div className="text-xs font-bold text-gray-700 w-20 text-right">NT${m.total.toLocaleString()}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {/* 熱銷商品 */}
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                          <h3 className="font-bold text-gray-800 mb-3">🔥 熱銷商品 Top 10</h3>
+                          <div className="space-y-2">
+                            {(salesReport.topProducts||[]).map((p,i)=>(
+                              <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-black flex-shrink-0 ${i===0?'bg-yellow-400':i===1?'bg-gray-400':i===2?'bg-amber-600':'bg-gray-200 text-gray-600'}`}>{i+1}</div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-bold text-gray-800 text-sm truncate">{p.name}</div>
+                                  <div className="text-xs text-gray-400">銷量 {p.qty} 件</div>
+                                </div>
+                                <div className="text-lime-600 font-black text-sm">NT${p.revenue.toLocaleString()}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+                {/* 📢 廣播訊息 */}
+                {tab==='broadcast' && (() => {
+                  const [bcMsg, setBcMsg] = React.useState('');
+                  const [bcSent, setBcSent] = React.useState(false);
+                  const sendBroadcast = async () => {
+                    if (!bcMsg.trim()) { showAlert('請輸入廣播訊息'); return; }
+                    if (!await showConfirm(`確定要透過 LIFF 推播廣播訊息給所有顧客嗎？\n\n訊息：${bcMsg.substring(0,50)}...`, '確認廣播')) return;
+                    if (typeof liff === 'undefined' || !liff.isInClient()) { showAlert('請在 LINE App 中開啟後使用 LIFF 廣播功能'); return; }
+                    try {
+                      await liff.sendMessages([{ type:'text', text: bcMsg }]);
+                      setBcSent(true);
+                      showAlert('廣播訊息已透過 LIFF 推播！');
+                    } catch(e) { showAlert('推播失敗：' + e.message); }
+                  };
+                  return (
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700">
+                        <div className="font-bold mb-1">📢 LIFF 廣播說明</div>
+                        <div className="text-xs leading-relaxed">廣播功能使用 LIFF sendMessages 推播，訊息會發送至管理員目前的 LINE 聊天視窗。如需廣播給所有用戶，請使用 LINE 官方帳號後台的廣播功能。</div>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+                        <h3 className="font-bold text-gray-800">撰寫廣播訊息</h3>
+                        <div className="space-y-2">
+                          {['🎉 限時特賣！本週精選商品全面特惠，歡迎選購！','📦 您好，您的訂單已出貨，請耐心等候收件。','🎁 本月壽星可至會員中心領取生日禮優惠券！'].map((t,i)=>(
+                            <button key={i} onClick={()=>setBcMsg(t)} className="w-full text-left p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-600 hover:bg-lime-50 hover:border-lime-200 transition-colors">{t}</button>
+                          ))}
+                        </div>
+                        <textarea
+                          value={bcMsg}
+                          onChange={e=>setBcMsg(e.target.value)}
+                          placeholder="輸入要廣播的訊息內容..."
+                          className="w-full p-3 border rounded-xl text-sm bg-gray-50 min-h-[120px]"
+                        />
+                        <div className="text-right text-xs text-gray-400">{bcMsg.length} 字</div>
+                        <button onClick={sendBroadcast} disabled={!bcMsg.trim()||bcSent}
+                          className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${bcSent?'bg-green-500 text-white':'bg-[#06C755] text-white shadow-lg shadow-green-200'}`}>
+                          {bcSent ? '✅ 已廣播' : '📲 LIFF 推播廣播'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+                {/* ⚙️ 設定 */}
                 {tab==='settings' && (
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                     <h3 className="font-bold text-lg">商店設定</h3>
