@@ -843,56 +843,67 @@
           shippingFee: currentShippingFee,
           status:'Pending', createdAt:new Date().toISOString()
         };
+        // ── 第一步：送出訂單到 GAS ──────────────────────────
+        let orderRes;
         try {
-          const res = await api.submitOrder(order);
-          if (!res || res.error) {
-            if (res?.errorType === 'PRODUCT_UNAVAILABLE') showAlert(`⚠️ 商品「${res.itemName}」已下架，請先從購物車移除再結帳`);
-            else if (res?.errorType === 'OUT_OF_STOCK') showAlert(`⚠️ ${res.error}`);
-            else showAlert('訂單送出失敗：' + (res?.error || '請稍後再試'));
-            setIsSubmitting(false); return;
-          }
-          const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
-          const paymentLabel = paymentMethod==='transfer' ? '轉帳付款' : deliveryMethod==='pickup' ? '門市付款' : '貨到付款';
-          const shippingText = currentShippingFee === 0 ? '免運費' : `NT$${currentShippingFee}`;
-          const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
-          const itemLines = cart.map((item, idx) => {
-            const vt = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
-            if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${vt} x${item.quantity}`;
-            return `  ${idx+1}. ${item.name}${vt} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
-          }).join('\n');
-          const transferNote = paymentMethod==='transfer' ? `\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！` : '';
-          const messageText = [
-            `🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',
-            `📦 商品明細：`,itemLines,'',
-            `💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,
-            `  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',
-            `🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',
-            `👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,
-            `  地址：${addressLine}`,`━━━━━━━━━━━━━━━`,
-            `感謝您的購買，我們會盡快為您處理！${transferNote}`
-          ].join('\n');
-          if (typeof liff !== 'undefined' && liff.isInClient()) {
-            try { await liff.sendMessages([{ type:'text', text: messageText }]); } catch(e) {}
-          }
-          // 優惠券標記已使用
-          if (selectedCoupon && user) {
+          orderRes = await api.submitOrder(order);
+        } catch(netErr) {
+          showAlert('網路連線失敗，請稍後再試'); setIsSubmitting(false); return;
+        }
+        if (!orderRes || orderRes.error) {
+          if (orderRes?.errorType === 'PRODUCT_UNAVAILABLE') showAlert(`⚠️ 商品「${orderRes.itemName}」已下架，請先從購物車移除再結帳`);
+          else if (orderRes?.errorType === 'OUT_OF_STOCK') showAlert(`⚠️ ${orderRes.error}`);
+          else showAlert('訂單送出失敗：' + (orderRes?.error || '請稍後再試'));
+          setIsSubmitting(false); return;
+        }
+
+        // ── 第二步：訂單成立後的後置動作（失敗不影響主流程）──
+        const deliveryLabel = deliveryMethod==='pickup' ? '🏪 店面取貨' : deliveryMethod==='cvs' ? `🏬 超商取貨 (${cvsType} ${formData.storeName})` : '🚚 宅配寄送';
+        const paymentLabel = paymentMethod==='transfer' ? '轉帳付款' : paymentMethod==='store' ? '門市付款' : '貨到付款';
+        const shippingText = currentShippingFee === 0 ? '免運費' : `NT$${currentShippingFee}`;
+        const addressLine = deliveryMethod==='pickup' ? (settings?.storeAddress||'請至門市取貨') : deliveryMethod==='cvs' ? `${cvsType} ${formData.storeName}` : formData.address;
+        const itemLines = cart.map((item, idx) => {
+          const vt = item.selectedVariant ? ` [${item.selectedVariant}]` : '';
+          if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${vt} x${item.quantity}`;
+          return `  ${idx+1}. ${item.name}${vt} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
+        }).join('\n');
+        const transferNote = paymentMethod==='transfer' ? `\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！` : '';
+        const messageText = [
+          `🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',
+          `📦 商品明細：`,itemLines,'',
+          `💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,
+          `  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',
+          `🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',
+          `👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,
+          `  地址：${addressLine}`,`━━━━━━━━━━━━━━━`,
+          `感謝您的購買，我們會盡快為您處理！${transferNote}`
+        ].join('\n');
+
+        // LIFF 通知（失敗不中斷）
+        if (typeof liff !== 'undefined' && liff.isInClient()) {
+          try { await liff.sendMessages([{ type:'text', text: messageText }]); } catch(e) {}
+        }
+        // 優惠券標記已使用（失敗不中斷）
+        if (selectedCoupon && user) {
+          try {
             const updatedCoupons = (user.coupons||[]).map(c =>
               c.id === selectedCoupon.id ? {...c, usedAt: new Date().toISOString().split('T')[0], usedOrderId: orderId} : c
             );
             const updatedUser = {...user, coupons: updatedCoupons};
             setUser(updatedUser);
-            try { await api.updateUserProfile(updatedUser); } catch(e) {}
-          }
-          clearCart();
-          if (paymentMethod === 'transfer') {
-            setCompletedOrderId(orderId);
-            setShowTransferModal(true);
-          } else {
-            showAlert('訂單已送出！');
-            navigate('/orders');
-          }
-        } catch(e) { showAlert('訂單送出失敗，請重試'); }
-        finally { setIsSubmitting(false); }
+            await api.updateUserProfile(updatedUser);
+          } catch(e) { console.warn('Coupon mark failed:', e); }
+        }
+
+        clearCart();
+        setIsSubmitting(false);
+        if (paymentMethod === 'transfer') {
+          setCompletedOrderId(orderId);
+          setShowTransferModal(true);
+        } else {
+          showAlert('🎉 訂單已成立！');
+          navigate('/orders');
+        }
       };
 
       const TransferModal = () => (
@@ -1062,7 +1073,12 @@
               <h3 className="font-bold text-sm">收件資訊</h3>
               <input placeholder="姓名" value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} className="w-full bg-gray-50 p-2 rounded-lg border border-gray-200" />
               <input placeholder="電話" value={formData.phone} onChange={e=>setFormData({...formData,phone:e.target.value})} className="w-full bg-gray-50 p-2 rounded-lg border border-gray-200" />
-              {deliveryMethod==='shipping' && <TaiwanAddressSelector value={formData.address} onChange={addr=>setFormData({...formData,address:addr})} />}
+              {deliveryMethod==='shipping' && (
+                <>
+                  {user?.address && <div className="text-xs text-lime-600 bg-lime-50 px-3 py-1.5 rounded-lg border border-lime-100">📍 已帶入您的常用地址，可直接修改</div>}
+                  <TaiwanAddressSelector value={formData.address} onChange={addr=>setFormData({...formData,address:addr})} />
+                </>
+              )}
             </div>
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-2">
               <div className="flex justify-between text-gray-600"><span>小計</span><span>NT${cartTotal}</span></div>
@@ -1422,8 +1438,11 @@
                 {e:'🎟️',l:'我的優惠券',a:()=>navigate('/my-coupons')},
                 {e:'🎁',l:'點數兌換',a:()=>navigate('/redeem')},
                 {e:'🏷️',l:'活動優惠',a:()=>navigate('/campaigns')},
+                {e:'🔍',l:'商品搜尋',a:()=>navigate('/?search=1')},
                 {e:'🛍️',l:'購買說明',a:()=>navigate('/instructions')},
                 {e:'💬',l:'聯絡客服',a:()=>{const id='705jtuuh';if(typeof liff!=='undefined'&&liff.isInClient())liff.openWindow({url:`https://line.me/R/ti/p/@${id}`,external:true});else window.open(`https://line.me/R/ti/p/@${id}`,'_blank');}},
+                {e:'🔗',l:'分享商店',a:()=>{const url=window.location.href.split('#')[0];if(typeof liff!=='undefined'&&liff.isInClient()&&liff.isApiAvailable('shareTargetPicker')){liff.shareTargetPicker([{type:'text',text:`✨ 推薦你來逛逛！\n${url}`}]);}else{try{navigator.share({title:'推薦好店',url});}catch(e){navigator.clipboard?.writeText(url);showAlert('連結已複製！');}}  }},
+                {e:'⭐',l:'我的評價',a:()=>showAlert('評價功能即將上線，敬請期待！')},
               ].map((item,i)=>(
                 <button key={i} onClick={item.a}
                   className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
@@ -1455,14 +1474,24 @@
                     </div>
                   </div>
                   <div><label className="text-xs text-gray-500 block mb-1">生日</label><input type="date" value={formData.birthday||''} onChange={e=>setFormData({...formData,birthday:e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50" /><p className="text-xs text-lime-600 mt-1">*填寫生日可獲得專屬生日禮</p></div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">常用收件地址 <span className="text-gray-400">（選填，宅配時自動帶入）</span></label>
+                    <TaiwanAddressSelector value={formData.address||''} onChange={addr=>setFormData({...formData,address:addr})} />
+                  </div>
                   <button onClick={handleSave} className="w-full bg-lime-600 text-white py-2 rounded-lg font-bold shadow-md mt-2">確認送出</button>
                   {isEditing && !needsRegistration && <button onClick={() => setIsEditing(false)} className="w-full text-gray-400 text-sm mt-2">取消</button>}
                 </div>
               </div>
             ) : (
-              <div className="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
-                <div><div className="text-sm text-gray-500">手機</div><div className="font-bold text-gray-800">{user.phone}</div></div>
-                <button onClick={() => setIsEditing(true)} className="text-gray-400 p-2"><Icons.Settings2 className="w-5 h-5" /></button>
+              <div className="bg-white p-4 rounded-2xl shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="text-sm text-gray-500 mb-0.5">手機</div>
+                    <div className="font-bold text-gray-800">{user.phone}</div>
+                    {user.address && <div className="text-xs text-gray-400 mt-1 truncate">📍 {user.address}</div>}
+                  </div>
+                  <button onClick={() => setIsEditing(true)} className="text-gray-400 p-2 flex-shrink-0"><Icons.Settings2 className="w-5 h-5" /></button>
+                </div>
               </div>
             )}
             {/* 許願池 */}
@@ -1760,6 +1789,58 @@
             >
               <Icons.ShoppingCart className="w-5 h-5" />
               {totalStock <= 0 ? '已售完' : addedAnim ? '已加入！' : '加入購物車'}
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // =====================================================
+    // 廣播子元件（必須是獨立元件，才能用 useState）
+    // =====================================================
+    const BroadcastTab = ({ showAlert, showConfirm }) => {
+      const [bcMsg, setBcMsg] = useState('');
+      const [bcSent, setBcSent] = useState(false);
+      const TEMPLATES = [
+        '🎉 限時特賣！本週精選商品全面特惠，歡迎選購！',
+        '📦 您好，您的訂單已出貨，請耐心等候收件。',
+        '🎁 本月壽星請至會員中心領取專屬生日禮優惠券！',
+        '🛍️ 新品上市！快來逛逛最新商品！',
+      ];
+      const sendBroadcast = async () => {
+        if (!bcMsg.trim()) { showAlert('請輸入廣播訊息'); return; }
+        if (!await showConfirm(`確定要透過 LIFF 推播訊息？\n\n「${bcMsg.substring(0,40)}${bcMsg.length>40?'...':''}」`, '確認廣播')) return;
+        if (typeof liff === 'undefined' || !liff.isInClient()) {
+          showAlert('請在 LINE App 中開啟才能使用 LIFF 廣播功能'); return;
+        }
+        try {
+          await liff.sendMessages([{ type:'text', text: bcMsg }]);
+          setBcSent(true);
+          showAlert('✅ 廣播訊息已透過 LIFF 推播至您的 LINE 聊天！');
+        } catch(e) { showAlert('推播失敗：' + (e.message || '請重試')); }
+      };
+      return (
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700">
+            <div className="font-bold mb-1">📢 LIFF 廣播說明</div>
+            <div className="text-xs leading-relaxed">廣播功能使用 LINE LIFF sendMessages 推播至管理員的聊天視窗。如需大量廣播給所有用戶，請至 LINE 官方帳號後台使用廣播功能。</div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+            <h3 className="font-bold text-gray-800">快速範本</h3>
+            <div className="space-y-2">
+              {TEMPLATES.map((t,i)=>(
+                <button key={i} onClick={()=>{setBcMsg(t);setBcSent(false);}}
+                  className="w-full text-left p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-600 hover:bg-lime-50 hover:border-lime-200 transition-colors">{t}</button>
+              ))}
+            </div>
+            <h3 className="font-bold text-gray-800">自訂訊息</h3>
+            <textarea value={bcMsg} onChange={e=>{setBcMsg(e.target.value);setBcSent(false);}}
+              placeholder="輸入要廣播的訊息內容..."
+              className="w-full p-3 border rounded-xl text-sm bg-gray-50 min-h-[120px]" />
+            <div className="text-right text-xs text-gray-400">{bcMsg.length} 字</div>
+            <button onClick={sendBroadcast} disabled={!bcMsg.trim()||bcSent}
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg ${bcSent?'bg-green-500 text-white shadow-green-200':'bg-[#06C755] text-white shadow-green-200'} disabled:opacity-50`}>
+              {bcSent ? '✅ 已廣播' : '📲 LIFF 廣播推播'}
             </button>
           </div>
         </div>
@@ -2427,47 +2508,7 @@
                   </div>
                 )}
                 {/* 📢 廣播訊息 */}
-                {tab==='broadcast' && (() => {
-                  const [bcMsg, setBcMsg] = React.useState('');
-                  const [bcSent, setBcSent] = React.useState(false);
-                  const sendBroadcast = async () => {
-                    if (!bcMsg.trim()) { showAlert('請輸入廣播訊息'); return; }
-                    if (!await showConfirm(`確定要透過 LIFF 推播廣播訊息給所有顧客嗎？\n\n訊息：${bcMsg.substring(0,50)}...`, '確認廣播')) return;
-                    if (typeof liff === 'undefined' || !liff.isInClient()) { showAlert('請在 LINE App 中開啟後使用 LIFF 廣播功能'); return; }
-                    try {
-                      await liff.sendMessages([{ type:'text', text: bcMsg }]);
-                      setBcSent(true);
-                      showAlert('廣播訊息已透過 LIFF 推播！');
-                    } catch(e) { showAlert('推播失敗：' + e.message); }
-                  };
-                  return (
-                    <div className="space-y-4">
-                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700">
-                        <div className="font-bold mb-1">📢 LIFF 廣播說明</div>
-                        <div className="text-xs leading-relaxed">廣播功能使用 LIFF sendMessages 推播，訊息會發送至管理員目前的 LINE 聊天視窗。如需廣播給所有用戶，請使用 LINE 官方帳號後台的廣播功能。</div>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-                        <h3 className="font-bold text-gray-800">撰寫廣播訊息</h3>
-                        <div className="space-y-2">
-                          {['🎉 限時特賣！本週精選商品全面特惠，歡迎選購！','📦 您好，您的訂單已出貨，請耐心等候收件。','🎁 本月壽星可至會員中心領取生日禮優惠券！'].map((t,i)=>(
-                            <button key={i} onClick={()=>setBcMsg(t)} className="w-full text-left p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-600 hover:bg-lime-50 hover:border-lime-200 transition-colors">{t}</button>
-                          ))}
-                        </div>
-                        <textarea
-                          value={bcMsg}
-                          onChange={e=>setBcMsg(e.target.value)}
-                          placeholder="輸入要廣播的訊息內容..."
-                          className="w-full p-3 border rounded-xl text-sm bg-gray-50 min-h-[120px]"
-                        />
-                        <div className="text-right text-xs text-gray-400">{bcMsg.length} 字</div>
-                        <button onClick={sendBroadcast} disabled={!bcMsg.trim()||bcSent}
-                          className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${bcSent?'bg-green-500 text-white':'bg-[#06C755] text-white shadow-lg shadow-green-200'}`}>
-                          {bcSent ? '✅ 已廣播' : '📲 LIFF 推播廣播'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
+                {tab==='broadcast' && <BroadcastTab showAlert={showAlert} showConfirm={showConfirm} />}
                 {/* ⚙️ 設定 */}
                 {tab==='settings' && (
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
