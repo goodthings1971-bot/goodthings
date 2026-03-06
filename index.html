@@ -463,6 +463,7 @@
       const [iconSize, setIconSize] = useState('M');
       const [showSizeMenu, setShowSizeMenu] = useState(false);
       const [showDrawer, setShowDrawer] = useState(false);
+      const [showPaymentModal, setShowPaymentModal] = useState(false);
       const [searchQuery, setSearchQuery] = useState('');
       const [showSearch, setShowSearch] = useState(false);
       const searchInputRef = React.useRef(null);
@@ -582,11 +583,9 @@
                       </div>
                       <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
                     </button>
-                    {/* 轉帳帳號快查 */}
-                    <button onClick={() => {
-                      setShowDrawer(false);
-                      navigate('/cart');
-                    }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                    {/* 付款帳號快查 */}
+                    <button onClick={() => { setShowDrawer(false); setShowPaymentModal(true); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-indigo-500 bg-indigo-50 flex-shrink-0">
                         <Icons.CreditCard className="w-5 h-5" />
                       </div>
@@ -614,7 +613,52 @@
               </div>
             </div>
           )}
-          <style>{`@keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }`}</style>
+          <style>{`@keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } } @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+
+          {/* ── 付款帳號彈窗 ── */}
+          {showPaymentModal && (() => {
+            const PaymentItem = ({ info }) => {
+              const [copied, setCopied] = React.useState(false);
+              const copy = () => {
+                try { navigator.clipboard.writeText(info.account); } catch(e) { const el=document.createElement('textarea');el.value=info.account;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el); }
+                setCopied(true); setTimeout(()=>setCopied(false), 2000);
+              };
+              return (
+                <button onClick={copy}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all active:scale-98 ${copied?'border-green-400 bg-green-50':'border-gray-100 bg-gray-50 hover:border-indigo-200 hover:bg-indigo-50'}`}>
+                  <div className="text-left">
+                    <div className="font-bold text-gray-800 text-sm">{info.bank}</div>
+                    <div className="font-mono text-gray-700 text-xl tracking-widest mt-0.5">{info.account}</div>
+                    {info.note && <div className="text-xs text-gray-400 mt-0.5">{info.note}</div>}
+                  </div>
+                  <div className={`text-xs font-bold px-3 py-1.5 rounded-xl flex-shrink-0 ml-3 ${copied?'bg-green-500 text-white':'bg-indigo-100 text-indigo-600'}`}>
+                    {copied ? '✅ 已複製' : '複製'}
+                  </div>
+                </button>
+              );
+            };
+            return (
+              <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={()=>setShowPaymentModal(false)}>
+                <div className="bg-white w-full max-w-md rounded-t-3xl shadow-2xl overflow-hidden" style={{animation:'slideUp 0.3s ease-out'}} onClick={e=>e.stopPropagation()}>
+                  <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-5 text-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-black text-xl">💳 付款帳號</div>
+                        <div className="text-indigo-200 text-sm mt-0.5">點擊帳號立即複製</div>
+                      </div>
+                      <button onClick={()=>setShowPaymentModal(false)} className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                        <Icons.X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-4 space-y-3 pb-10">
+                    {TRANSFER_INFO.map((info, i) => <PaymentItem key={i} info={info} />)}
+                    <p className="text-center text-xs text-gray-400 pt-1">完成轉帳後請將截圖傳給客服確認，感謝 🙏</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <div className="bg-lime-500 text-white sticky top-0 z-40 shadow-md rounded-b-3xl">
             {settings?.marqueeText && (
               <div className="bg-lime-700 text-white text-xs py-1 overflow-hidden whitespace-nowrap">
@@ -833,7 +877,7 @@
     // 頁面：購物車
     // =====================================================
     const Cart = () => {
-      const { cart, updateQuantity, clearCart, cartTotal, user, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed } = useAppContext();
+      const { cart, updateQuantity, clearCart, cartTotal, user, setUser, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed } = useAppContext();
       const { showAlert } = useDialog();
       const navigate = useNavigate();
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1850,53 +1894,115 @@
     };
 
     // =====================================================
-    // 廣播子元件（必須是獨立元件，才能用 useState）
+    // 廣播子元件 — 使用後端 LINE Messaging API Push
     // =====================================================
-    const BroadcastTab = ({ showAlert, showConfirm }) => {
+    const BroadcastTab = ({ showAlert, showConfirm, adminId }) => {
       const [bcMsg, setBcMsg] = useState('');
-      const [bcSent, setBcSent] = useState(false);
+      const [mode, setMode] = useState('all'); // 'all' | 'single'
+      const [toUserId, setToUserId] = useState('');
+      const [sending, setSending] = useState(false);
+      const [result, setResult] = useState(null); // {ok, msg}
+
       const TEMPLATES = [
-        '🎉 限時特賣！本週精選商品全面特惠，歡迎選購！',
-        '📦 您好，您的訂單已出貨，請耐心等候收件。',
+        '🎉 限時特賣！本週精選商品全面特惠，數量有限，歡迎選購！',
+        '📦 您好，您的訂單已完成出貨，預計 1-3 個工作日送達，請耐心等候。',
         '🎁 本月壽星請至會員中心領取專屬生日禮優惠券！',
-        '🛍️ 新品上市！快來逛逛最新商品！',
+        '🛍️ 新品上架！快來逛逛最新商品，售完為止！',
+        '⭐ 感謝您的購買，歡迎至「我的評價」留下心得，期待您再次光臨！',
       ];
-      const sendBroadcast = async () => {
-        if (!bcMsg.trim()) { showAlert('請輸入廣播訊息'); return; }
-        if (!await showConfirm(`確定要透過 LIFF 推播訊息？\n\n「${bcMsg.substring(0,40)}${bcMsg.length>40?'...':''}」`, '確認廣播')) return;
-        if (typeof liff === 'undefined' || !liff.isInClient()) {
-          showAlert('請在 LINE App 中開啟才能使用 LIFF 廣播功能'); return;
-        }
+
+      const send = async () => {
+        if (!bcMsg.trim()) { showAlert('請輸入推播訊息'); return; }
+        if (mode === 'single' && !toUserId.trim()) { showAlert('請填入目標用戶的 LINE ID'); return; }
+        const preview = bcMsg.substring(0, 50) + (bcMsg.length > 50 ? '...' : '');
+        const confirmTxt = mode === 'all'
+          ? `確定廣播給「所有會員」？\n\n${preview}`
+          : `確定推播給用戶：\n${toUserId}\n\n${preview}`;
+        if (!await showConfirm(confirmTxt, mode === 'all' ? '確認廣播' : '確認推播')) return;
+        setSending(true); setResult(null);
         try {
-          await liff.sendMessages([{ type:'text', text: bcMsg }]);
-          setBcSent(true);
-          showAlert('✅ 廣播訊息已透過 LIFF 推播至您的 LINE 聊天！');
-        } catch(e) { showAlert('推播失敗：' + (e.message || '請重試')); }
+          const action = mode === 'all' ? 'broadcastToAll' : 'broadcastToUser';
+          const payload = mode === 'all'
+            ? { adminId, message: bcMsg }
+            : { adminId, toUserId: toUserId.trim(), message: bcMsg };
+          const r = await api.post(action, payload);
+          if (r?.success) {
+            const detail = mode === 'all' ? `成功 ${r.sent} 人，失敗 ${r.failed} 人` : '已送達';
+            setResult({ ok: true, msg: `✅ 推播成功！${detail}` });
+            setBcMsg('');
+          } else {
+            setResult({ ok: false, msg: '❌ ' + (r?.error || '推播失敗') });
+          }
+        } catch(e) {
+          setResult({ ok: false, msg: '❌ 網路錯誤：' + e.message });
+        }
+        setSending(false);
       };
+
       return (
         <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700">
-            <div className="font-bold mb-1">📢 LIFF 廣播說明</div>
-            <div className="text-xs leading-relaxed">廣播功能使用 LINE LIFF sendMessages 推播至管理員的聊天視窗。如需大量廣播給所有用戶，請至 LINE 官方帳號後台使用廣播功能。</div>
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-800">
+            <div className="font-bold mb-1">📡 LINE Messaging API 直接推播</div>
+            <div className="text-xs leading-relaxed">不需要用戶在 LINE 中開啟，後端透過 Channel Token 直接送達。可推播給單一用戶或廣播給所有已註冊會員。</div>
           </div>
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h3 className="font-bold text-gray-800">快速範本</h3>
-            <div className="space-y-2">
-              {TEMPLATES.map((t,i)=>(
-                <button key={i} onClick={()=>{setBcMsg(t);setBcSent(false);}}
-                  className="w-full text-left p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-600 hover:bg-lime-50 hover:border-lime-200 transition-colors">{t}</button>
+
+          {/* 模式切換 */}
+          <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+            {[{id:'all',label:'📢 廣播所有用戶'},{id:'single',label:'📤 推播單一用戶'}].map(m=>(
+              <button key={m.id} onClick={()=>{setMode(m.id);setResult(null);}}
+                className={`flex-1 py-2.5 text-sm font-bold transition-colors ${mode===m.id?'bg-white text-blue-700 shadow-sm':'text-gray-500'}`}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'single' && (
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">目標 LINE ID（U 開頭）</label>
+              <input value={toUserId} onChange={e=>setToUserId(e.target.value)}
+                placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="w-full p-2.5 border border-gray-200 rounded-xl text-xs bg-gray-50 font-mono" />
+            </div>
+          )}
+
+          {mode === 'all' && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-700">
+              ⚠️ 廣播將推播給所有已完成手機驗證的會員，請確認訊息內容正確後再送出。
+            </div>
+          )}
+
+          {/* 快速範本 */}
+          <div>
+            <div className="text-xs text-gray-500 mb-2 font-bold">快速範本</div>
+            <div className="space-y-1.5">
+              {TEMPLATES.map((t, i) => (
+                <button key={i} onClick={()=>{setBcMsg(t);setResult(null);}}
+                  className="w-full text-left p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-600 hover:bg-blue-50 hover:border-blue-200 transition-colors leading-relaxed">
+                  {t}
+                </button>
               ))}
             </div>
-            <h3 className="font-bold text-gray-800">自訂訊息</h3>
-            <textarea value={bcMsg} onChange={e=>{setBcMsg(e.target.value);setBcSent(false);}}
-              placeholder="輸入要廣播的訊息內容..."
-              className="w-full p-3 border rounded-xl text-sm bg-gray-50 min-h-[120px]" />
-            <div className="text-right text-xs text-gray-400">{bcMsg.length} 字</div>
-            <button onClick={sendBroadcast} disabled={!bcMsg.trim()||bcSent}
-              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg ${bcSent?'bg-green-500 text-white shadow-green-200':'bg-[#06C755] text-white shadow-green-200'} disabled:opacity-50`}>
-              {bcSent ? '✅ 已廣播' : '📲 LIFF 廣播推播'}
-            </button>
           </div>
+
+          {/* 自訂訊息 */}
+          <div>
+            <div className="text-xs text-gray-500 mb-1 font-bold">推播內容</div>
+            <textarea value={bcMsg} onChange={e=>{setBcMsg(e.target.value);setResult(null);}}
+              placeholder="輸入推播訊息內容..."
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm bg-gray-50 min-h-[120px] resize-none" />
+            <div className="text-right text-xs text-gray-400 mt-1">{bcMsg.length} 字</div>
+          </div>
+
+          {result && (
+            <div className={`p-3 rounded-xl text-sm font-bold text-center ${result.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {result.msg}
+            </div>
+          )}
+
+          <button onClick={send} disabled={sending || !bcMsg.trim() || (mode==='single' && !toUserId.trim())}
+            className="w-full py-3.5 rounded-xl font-bold text-sm bg-blue-600 text-white shadow-lg shadow-blue-200 active:scale-95 transition-all disabled:opacity-40">
+            {sending ? '推播中...' : mode === 'all' ? '📢 廣播給所有用戶' : '📤 推播給指定用戶'}
+          </button>
         </div>
       );
     };
@@ -1988,27 +2094,24 @@
       };
 
       // 通知推播 Modal
-      const NotifyModal = ({ msg, onClose }) => {
+      const NotifyModal = ({ msg, toUserId, onClose }) => {
         const [copied, setCopied] = useState(false);
         const [sending, setSending] = useState(false);
         const [sent, setSent] = useState(false);
+        const [apiErr, setApiErr] = useState('');
         const copyMsg = () => {
           try { navigator.clipboard.writeText(msg); } catch(e) { const el=document.createElement('textarea'); el.value=msg; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); }
-          setCopied(true); setTimeout(()=>setCopied(false),2500);
+          setCopied(true); setTimeout(()=>setCopied(false), 2500);
         };
-        const sendViaLiff = async () => {
-          setSending(true);
+        const sendViaPush = async () => {
+          if (!toUserId) { showAlert('無法取得用戶 LINE ID，請改用複製後手動發送'); return; }
+          setSending(true); setApiErr('');
           try {
-            if (typeof liff === 'undefined') { showAlert('LIFF 尚未載入'); setSending(false); return; }
-            if (!liff.isInClient()) { showAlert('請在 LINE App 中開啟才能使用 LIFF 推播'); setSending(false); return; }
-            await liff.sendMessages([{ type: 'text', text: msg }]);
-            setSent(true);
-            setTimeout(onClose, 1500);
-          } catch(e) {
-            console.error('LIFF sendMessages:', e);
-            showAlert('推播失敗，請改用手動複製後至 LINE 發送');
-            setSending(false);
-          }
+            const r = await api.post('sendLineNotify', { adminId: user.lineId, toUserId, message: msg });
+            if (r?.success) { setSent(true); setTimeout(onClose, 1500); }
+            else { setApiErr(r?.error || '推播失敗'); }
+          } catch(e) { setApiErr('網路錯誤：' + e.message); }
+          setSending(false);
         };
         return (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
@@ -2016,14 +2119,15 @@
               <div className="bg-[#06C755] p-5 text-white text-center">
                 <div className="text-3xl mb-1">📲</div>
                 <h3 className="font-black text-lg">LINE 通知推播</h3>
-                <p className="text-green-100 text-xs mt-1">透過 LIFF 官方後台推播至顧客</p>
+                <p className="text-green-100 text-xs mt-1">透過 LINE Messaging API 直接推播至顧客</p>
               </div>
               <div className="p-4">
                 <div className="bg-gray-50 rounded-2xl p-3 text-xs text-gray-700 whitespace-pre-wrap font-mono mb-4 max-h-48 overflow-y-auto border border-gray-100 leading-relaxed">{msg}</div>
+                {apiErr && <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">{apiErr}</div>}
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <button onClick={sendViaLiff} disabled={sending||sent}
+                  <button onClick={sendViaPush} disabled={sending || sent}
                     className={`py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${sent?'bg-green-500 text-white':sending?'bg-gray-200 text-gray-400':'bg-[#06C755] text-white shadow-lg shadow-green-200'}`}>
-                    {sent ? '✅ 已推播' : sending ? '⏳ 推播中...' : '📲 LIFF 推播'}
+                    {sent ? '✅ 已推播' : sending ? '⏳ 推播中...' : '📲 LINE 推播'}
                   </button>
                   <button onClick={copyMsg}
                     className={`py-3.5 rounded-2xl border-2 font-bold text-sm transition-all active:scale-95 ${copied?'border-lime-400 bg-lime-50 text-lime-700':'border-gray-200 text-gray-600'}`}>
@@ -2116,7 +2220,7 @@
       return (
         <div className="min-h-screen bg-gray-50 pb-20">
           {/* 通知 Modal */}
-          {notifyModal && <NotifyModal msg={notifyModal.msg} onClose={notifyModal.onClose} />}
+          {notifyModal && <NotifyModal msg={notifyModal.msg} toUserId={notifyModal.toUserId} onClose={notifyModal.onClose} />}
 
           {/* 商品編輯 Modal */}
           {editProduct && (
@@ -2562,7 +2666,7 @@
                   </div>
                 )}
                 {/* 📢 廣播訊息 */}
-                {tab==='broadcast' && <BroadcastTab showAlert={showAlert} showConfirm={showConfirm} />}
+                {tab==='broadcast' && <BroadcastTab showAlert={showAlert} showConfirm={showConfirm} adminId={user?.lineId} />}
                 {/* ⚙️ 設定 */}
                 {tab==='settings' && (
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
