@@ -1694,6 +1694,16 @@
                 <div className="text-3xl font-bold text-gray-800">{user.points||0} <span className="text-sm text-gray-400 font-normal">pts</span></div>
               </div>
             </div>
+            {/* 管理員入口 — 在優惠券上方顯示 */}
+            {isAdmin && (
+              <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-4 rounded-2xl shadow-md flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-full"><Icons.ShieldCheck className="w-5 h-5 text-white" /></div>
+                  <div><div className="font-bold text-white">管理員後台</div><div className="text-xs text-purple-200">訂單、會員、設定管理</div></div>
+                </div>
+                <button onClick={() => navigate('/admin')} className="bg-white text-purple-700 px-4 py-2 rounded-xl text-sm font-bold shadow active:scale-95 transition-transform">進入</button>
+              </div>
+            )}
             {/* 我的優惠券 */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-3">
@@ -1737,16 +1747,6 @@
               ))}
             </div>
 
-            {/* 管理員入口 */}
-            {isAdmin && (
-              <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-purple-100 p-2 rounded-full"><Icons.ShieldCheck className="w-5 h-5 text-purple-600" /></div>
-                  <div><div className="font-bold text-gray-800">管理員後台</div><div className="text-xs text-gray-400">訂單、會員、設定管理</div></div>
-                </div>
-                <button onClick={() => navigate('/admin')} className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform">進入</button>
-              </div>
-            )}
             {/* 會員資料區 */}
             {(needsRegistration||isEditing) ? (
               <div className="bg-white p-6 rounded-2xl shadow-sm border-2 border-lime-100">
@@ -2004,7 +2004,7 @@
     const ProductDetail = () => {
       const { id } = useParams();
       const navigate = useNavigate();
-      const { addToCart, cart, allProducts } = useAppContext();
+      const { addToCart, cart, allProducts, user } = useAppContext();
       const { showAlert } = useDialog();
       const [product, setProduct] = useState(null);
       const [loading, setLoading] = useState(true);
@@ -2242,6 +2242,8 @@
       const [toUserId, setToUserId] = useState('');
       const [sending, setSending] = useState(false);
       const [result, setResult] = useState(null); // {ok, msg}
+      const [debugResult, setDebugResult] = useState(null);
+      const [debugLoading, setDebugLoading] = useState(false);
 
       const TEMPLATES = [
         '🎉 限時特賣！本週精選商品全面特惠，數量有限，歡迎選購！',
@@ -2250,6 +2252,15 @@
         '🛍️ 新品上架！快來逛逛最新商品，售完為止！',
         '⭐ 感謝您的購買，歡迎至「我的評價」留下心得，期待您再次光臨！',
       ];
+
+      const runDebug = async () => {
+        setDebugLoading(true); setDebugResult(null);
+        try {
+          const r = await api.post('debugLinePush', { adminId, toUserId: adminId });
+          setDebugResult(r);
+        } catch(e) { setDebugResult({ ok: false, step: 'network', reason: e.message }); }
+        setDebugLoading(false);
+      };
 
       const send = async () => {
         if (!bcMsg.trim()) { showAlert('請輸入推播訊息'); return; }
@@ -2284,6 +2295,27 @@
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-800">
             <div className="font-bold mb-1">📡 LINE Messaging API 直接推播</div>
             <div className="text-xs leading-relaxed">不需要用戶在 LINE 中開啟，後端透過 Channel Token 直接送達。可推播給單一用戶或廣播給所有已註冊會員。</div>
+          </div>
+
+          {/* 🔍 除錯區塊 */}
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-2">
+            <div className="text-sm font-bold text-gray-700 flex items-center gap-2">🔍 Token 除錯診斷</div>
+            <div className="text-xs text-gray-500">點下方按鈕，系統會嘗試推播給你自己並回報詳細診斷結果</div>
+            <button onClick={runDebug} disabled={debugLoading}
+              className="w-full py-2.5 rounded-xl border-2 border-gray-300 text-gray-700 font-bold text-sm bg-white active:scale-95 transition-all disabled:opacity-50">
+              {debugLoading ? '診斷中...' : '🔍 執行 LINE 推播除錯'}
+            </button>
+            {debugResult && (
+              <div className={`rounded-xl p-3 text-xs space-y-1 font-mono ${debugResult.ok ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+                <div className="font-bold text-sm">{debugResult.ok ? '✅ 推播成功！請檢查你的 LINE 訊息' : '❌ 推播失敗'}</div>
+                {debugResult.step && <div>步驟：{debugResult.step}</div>}
+                {debugResult.tokenLen !== undefined && <div>Token 長度：{debugResult.tokenLen} 字元 ／ 前15碼：{debugResult.tokenPreview}</div>}
+                {debugResult.httpCode && <div>HTTP 狀態碼：{debugResult.httpCode}</div>}
+                {debugResult.apiMessage && <div>API 回應：{debugResult.apiMessage}</div>}
+                {debugResult.hint && <div className="font-bold text-orange-700">💡 {debugResult.hint}</div>}
+                {debugResult.reason && <div>原因：{debugResult.reason}</div>}
+              </div>
+            )}
           </div>
 
           {/* 模式切換 */}
@@ -3150,12 +3182,19 @@
                       </div>
                       <button onClick={async () => {
                         if (!adminSettings.lineChannelToken) { showAlert('請先填入 Token'); return; }
-                        // 先儲存再測試
                         try {
+                          // 先儲存 Token
                           await api.post('updateSettings', { adminId:user.lineId, settings:{ lineChannelToken: adminSettings.lineChannelToken } });
-                          const r = await api.post('broadcastToUser', { adminId:user.lineId, toUserId:user.lineId, message:'🧪 LINE推播測試成功！Token 設定正確 ✅' });
-                          if (r?.success) showAlert('✅ 推播測試成功！請查看您的 LINE 訊息。');
-                          else showAlert('❌ 推播失敗：' + (r?.error||'請確認 Token 是否正確'));
+                          // 呼叫除錯 API 取得詳細診斷
+                          const r = await api.post('debugLinePush', { adminId:user.lineId, toUserId:user.lineId });
+                          if (r?.ok) {
+                            showAlert('✅ 推播測試成功！\n請查看您的 LINE 訊息。\n\nToken 長度：' + (r.tokenLen||'?') + ' 字元');
+                          } else {
+                            const hint = r?.hint || r?.reason || r?.apiMessage || '未知錯誤';
+                            const tokenInfo = r?.tokenLen !== undefined ? `\nToken 長度：${r.tokenLen} 字元` : '';
+                            const httpInfo = r?.httpCode ? `\nHTTP：${r.httpCode}` : '';
+                            showAlert('❌ 推播失敗\n\n原因：' + hint + tokenInfo + httpInfo + '\n\n請至「廣播」分頁點「執行 LINE 推播除錯」取得更多資訊');
+                          }
                         } catch(e) { showAlert('測試失敗：' + e.message); }
                       }} className="w-full py-3 bg-[#06C755] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">
                         📲 儲存並測試推播（推播給自己）
