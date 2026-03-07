@@ -319,8 +319,10 @@
       }
     }
 
-    // --- Shared Components ---
-    const ProductCard = ({ product }) => {
+    // =====================================================
+    // 商品卡片（memo 化，避免不必要的重新渲染）
+    // =====================================================
+    const ProductCard = React.memo(({ product }) => {
       // ✅ 計算總庫存（支援 "3,5" 格式）
       const totalStock = String(product.stock || '0').split(',').map(s => Number(s.trim()) || 0).reduce((a, b) => a + b, 0);
       return (
@@ -340,7 +342,7 @@
           </div>
         </Link>
       );
-    };
+    });  // end React.memo(ProductCard)
 
     // =====================================================
     // 台灣地址選擇器（含郵遞區號）
@@ -428,28 +430,29 @@
       );
     };
 
-    const BottomNav = ({ active }) => {
+    const BottomNav = ({ active, onSearchClick }) => {
       const { cart } = useAppContext();
       const navigate = useNavigate();
       const count = cart.reduce((a, c) => a + c.quantity, 0);
       const navItems = [
-        { id: 'home', icon: Icons.Home, label: '首頁', path: '/' },
-        { id: 'cart', icon: Icons.ShoppingCart, label: '購物車', path: '/cart', badge: count },
-        { id: 'profile', icon: Icons.User, label: '會員中心', path: '/profile' },
+        { id: 'home', icon: Icons.Home, label: '首頁', action: () => navigate('/') },
+        { id: 'search', icon: Icons.Search, label: '搜尋', action: onSearchClick || (() => navigate('/')) },
+        { id: 'cart', icon: Icons.ShoppingCart, label: '購物車', action: () => navigate('/cart'), badge: count },
+        { id: 'profile', icon: Icons.User, label: '會員中心', action: () => navigate('/profile') },
       ];
       return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-2 pb-safe z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-3xl">
-          <div className="flex justify-between items-center max-w-md mx-auto">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 py-2 pb-safe z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-3xl">
+          <div className="flex justify-around items-center max-w-md mx-auto">
             {navItems.map(item => {
               const isActive = active === item.id;
               return (
-                <button key={item.id} onClick={() => navigate(item.path)}
-                  className={`relative flex flex-col items-center justify-center w-16 h-16 transition-all duration-300 ${isActive ? '-mt-6' : ''}`}>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm ${isActive ? 'bg-lime-500 text-white scale-110 shadow-lime-200 shadow-lg' : 'bg-transparent text-gray-400'}`}>
-                    <item.icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
+                <button key={item.id} onClick={item.action}
+                  className={`relative flex flex-col items-center justify-center w-16 h-14 transition-all duration-200 ${isActive ? '-mt-5' : ''}`}>
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-lime-500 text-white shadow-lg shadow-lime-200 scale-110' : 'bg-transparent text-gray-400'}`}>
+                    <item.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
                   </div>
-                  {item.badge > 0 && <span className="absolute top-0 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm">{item.badge}</span>}
-                  <span className={`text-[10px] font-bold mt-1 transition-opacity ${isActive ? 'text-lime-600 opacity-100' : 'text-gray-400 opacity-0'}`}>{item.label}</span>
+                  {item.badge > 0 && <span className="absolute top-0 right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm">{item.badge}</span>}
+                  <span className={`text-[9px] font-bold mt-0.5 transition-opacity ${isActive ? 'text-lime-600 opacity-100' : 'text-gray-400 opacity-70'}`}>{item.label}</span>
                 </button>
               );
             })}
@@ -702,10 +705,6 @@
                   <h1 className="font-black text-xl tracking-wide">{settings?.storeName || '美好的事'}</h1>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={()=>{setShowSearch(true);setTimeout(()=>searchInputRef.current?.focus(),80);}}
-                    className="p-2 bg-lime-600/50 rounded-xl active:scale-90 transition-transform">
-                    <Icons.Search className="w-5 h-5" />
-                  </button>
                   <Link to="/cart" className="relative p-2"><Icons.ShoppingCart size={24} /></Link>
                 </div>
               </div>
@@ -759,7 +758,7 @@
               <Icons.LayoutGrid size={20} />
             </button>
           </div>
-          <BottomNav active="home" />
+          <BottomNav active={showSearch ? 'search' : 'home'} onSearchClick={()=>{setShowSearch(true);setTimeout(()=>searchInputRef.current?.focus(),80);}} />
         </div>
       );
     };
@@ -890,16 +889,80 @@
 
 
     // =====================================================
+    // 預約取貨時間選擇器
+    // =====================================================
+    const PickupTimePicker = ({ value, onChange }) => {
+      // 產生未來 14 天的可選日期（排除週一）
+      const getDates = () => {
+        const dates = [];
+        const today = new Date();
+        for (let i = 0; i < 21 && dates.length < 14; i++) {
+          const d = new Date(today);
+          d.setDate(today.getDate() + i);
+          if (d.getDay() !== 1) { // 週一 = 1，公休
+            const mm = d.getMonth()+1, dd = d.getDate();
+            const weekDay = ['日','一','二','三','四','五','六'][d.getDay()];
+            dates.push({ label:`${mm}/${dd}（週${weekDay}）`, value:`${d.getFullYear()}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}` });
+          }
+        }
+        return dates;
+      };
+      const dates = getDates();
+      // 時段：11:30 開始每 30 分鐘一格到 19:30（最後取貨 20:00 前）
+      const slots = [];
+      for (let h = 11; h <= 19; h++) {
+        for (let m of [0, 30]) {
+          if (h === 11 && m === 0) continue; // 從 11:30 開始
+          const label = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+          slots.push(label);
+        }
+      }
+      const [selDate, setSelDate] = useState('');
+      const [selSlot, setSelSlot] = useState('');
+
+      const update = (d, s) => {
+        if (d && s) onChange(`${d} ${s}`);
+        else onChange('');
+      };
+      return (
+        <div className="space-y-2">
+          <select value={selDate} onChange={e=>{ setSelDate(e.target.value); update(e.target.value, selSlot); }}
+            className="w-full p-2.5 border border-blue-200 rounded-xl text-sm bg-white">
+            <option value="">選擇日期</option>
+            {dates.map(d=><option key={d.value} value={d.value}>{d.label}</option>)}
+          </select>
+          {selDate && (
+            <div className="grid grid-cols-4 gap-1.5">
+              {slots.map(s => (
+                <button key={s} onClick={()=>{ setSelSlot(s); update(selDate, s); }}
+                  className={`py-2 rounded-lg text-xs font-bold border transition-all active:scale-95 ${selSlot===s?'bg-blue-500 text-white border-blue-500':'bg-white text-gray-600 border-gray-200'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          {value && (
+            <div className="flex items-center justify-between bg-blue-100 rounded-xl px-3 py-2">
+              <span className="text-xs font-bold text-blue-700">✅ 預約：{value}</span>
+              <button onClick={()=>{ setSelDate(''); setSelSlot(''); onChange(''); }} className="text-blue-400 text-xs">清除</button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // =====================================================
     // 頁面：購物車
     // =====================================================
     const Cart = () => {
       const { cart, updateQuantity, clearCart, cartTotal, user, setUser, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed } = useAppContext();
-      const { showAlert } = useDialog();
+      const { showAlert, showConfirm } = useDialog();
       const navigate = useNavigate();
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [deliveryMethod, setDeliveryMethod] = useState('shipping');
       const [paymentMethod, setPaymentMethod] = useState('transfer');
       const [cvsType, setCvsType] = useState('');
+      const [pickupTime, setPickupTime] = useState('');
       const [formData, setFormData] = useState({ name: user?.name||'', phone: user?.phone||'', address: user?.address||'', storeName: '' });
       const [selectedCoupon, setSelectedCoupon] = useState(null);
       const [showTransferModal, setShowTransferModal] = useState(false);
@@ -950,6 +1013,15 @@
           const addrErr = validateShippingAddress(formData.address);
           if (addrErr) { showAlert(addrErr); return; }
         }
+        // ── 店取：送出前提示營業時間 ──────────────────────
+        if (deliveryMethod === 'pickup') {
+          const ptLine = pickupTime ? `\n📅 預約取貨：${pickupTime}` : '\n（未填預約時間，建議事先聯繫確認）';
+          const ok = await showConfirm(
+            `🏪 店面取貨注意事項\n\n⏰ 營業時間\n  週二 ～ 週日\n  11:30 ～ 20:00\n  🚫 週一公休${ptLine}\n\n確認送出訂單？`,
+            '確認取貨資訊'
+          );
+          if (!ok) return;
+        }
         setIsSubmitting(true);
         const orderId = generateOrderId();
         const order = {
@@ -958,6 +1030,7 @@
           items:cart, total, pointsUsed, pointsEarned, discount:discountAmount,
           deliveryMethod, paymentMethod,
           shippingFee: currentShippingFee,
+          pickupTime: deliveryMethod==='pickup' ? (pickupTime||'') : '',
           status:'Pending', createdAt:new Date().toISOString()
         };
         // ── 第一步：送出訂單到 GAS ──────────────────────────
@@ -989,7 +1062,8 @@
               return `  ${idx+1}. ${item.name}${vt} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
             }).join('\n');
             const transferNote = paymentMethod==='transfer' ? '\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！' : '';
-            const msg = [`🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',`📦 商品明細：`,itemLines,'',`💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,`  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',`🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',`👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,`  地址：${addressLine}`,`━━━━━━━━━━━━━━━`,`感謝您的購買！${transferNote}`].join('\n');
+            const pickupNote = (deliveryMethod==='pickup' && pickupTime) ? `\n📅 預約取貨時間：${pickupTime}` : '';
+            const msg = [`🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',`📦 商品明細：`,itemLines,'',`💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,`  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',`🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',`👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,`  地址：${addressLine}${pickupNote}`,`━━━━━━━━━━━━━━━`,`感謝您的購買！${transferNote}`].join('\n');
             await liff.sendMessages([{ type:'text', text: msg }]);
           }
         } catch(e) { console.warn('LIFF msg failed', e); }
@@ -1128,7 +1202,30 @@
                   </button>
                 ))}
               </div>
-              {deliveryMethod==='pickup' && <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600"><div className="font-bold mb-1">取貨資訊</div><div>{settings?.storeAddress||'請聯繫門市'}</div><div>電話：{settings?.storePhone}</div></div>}
+              {deliveryMethod==='pickup' && (
+                <div className="space-y-3">
+                  {/* 門市資訊 */}
+                  <div className="bg-lime-50 border border-lime-200 rounded-xl p-3 text-sm space-y-1">
+                    <div className="font-bold text-lime-800 flex items-center gap-1.5">🏪 取貨資訊</div>
+                    <div className="text-gray-700">{settings?.storeAddress||'請聯繫門市'}</div>
+                    {settings?.storePhone && <div className="text-gray-600">📞 {settings.storePhone}</div>}
+                  </div>
+                  {/* 營業時間提示 */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-0.5">
+                    <div className="font-bold flex items-center gap-1">⏰ 營業時間</div>
+                    <div>週二 ～ 週日　11:30 ～ 20:00</div>
+                    <div className="text-red-600 font-bold">🚫 週一公休，請勿前往</div>
+                  </div>
+                  {/* 預約取貨時間 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                    <div className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
+                      📅 預約取貨時間
+                      <span className="text-blue-400 font-normal">（選填，方便我們為您準備）</span>
+                    </div>
+                    <PickupTimePicker value={pickupTime} onChange={setPickupTime} />
+                  </div>
+                </div>
+              )}
               {deliveryMethod==='cvs' && (
                 <div className="space-y-3 bg-gray-50 p-3 rounded-lg">
                   <div className="grid grid-cols-2 gap-2">
@@ -1224,6 +1321,8 @@
       const [loading, setLoading] = useState(true);
       const [editOrder, setEditOrder] = useState(null);
       const [editForm, setEditForm] = useState({});
+      const [editPickupOrder, setEditPickupOrder] = useState(null); // 修改預約時間的訂單
+      const [newPickupTime, setNewPickupTime] = useState('');
 
       useEffect(() => {
         if (!user || user.lineId === 'guest') { setLoading(false); return; }
@@ -1271,13 +1370,49 @@
         } catch(e) { showAlert('發生錯誤，請稍後再試'); }
       };
 
+      // 修改預約取貨時間
+      const handlePickupTimeOpen = (order) => {
+        const method = order.deliveryMethod || order.content?.deliveryMethod;
+        if (method !== 'pickup') return;
+        if (order.status === 'Completed' || order.status === 'Cancelled') { showAlert('此訂單狀態無法修改取貨時間'); return; }
+        setEditPickupOrder(order);
+        setNewPickupTime(order.content?.pickupTime || order.pickupTime || '');
+      };
+
+      const handlePickupTimeSave = async () => {
+        try {
+          const res = await api.post('updateOrderPickupTime', {
+            orderId: editPickupOrder.orderId,
+            lineId: user.lineId,
+            pickupTime: newPickupTime
+          });
+          if (res?.success) {
+            // 更新本地 state
+            setOrders(prev => prev.map(o => o.orderId===editPickupOrder.orderId ? {
+              ...o, pickupTime: newPickupTime,
+              content: { ...o.content, pickupTime: newPickupTime }
+            } : o));
+            // LIFF 推播通知商家
+            try {
+              if (typeof liff !== 'undefined' && liff.isInClient()) {
+                const ptText = newPickupTime || '（已清除預約時間）';
+                const msg = `📅 取貨時間變更通知\n━━━━━━━━━━━━━━━\n訂單編號：${editPickupOrder.orderId}\n顧客：${user.name}\n電話：${user.phone}\n\n新預約取貨時間：${ptText}\n━━━━━━━━━━━━━━━\n請確認安排，謝謝！`;
+                await liff.sendMessages([{ type: 'text', text: msg }]);
+              }
+            } catch(e) { console.warn('LIFF pickup notify failed', e); }
+            showAlert('✅ 取貨時間已更新！');
+            setEditPickupOrder(null);
+          } else { showAlert('更新失敗：' + (res?.error||'請稍後再試')); }
+        } catch(e) { showAlert('發生錯誤，請稍後再試'); }
+      };
+
       return (
         <div className="min-h-screen bg-gray-50 pb-24">
           <div className="bg-white p-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
             <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
             <h1 className="font-bold text-lg">訂單紀錄</h1>
           </div>
-          {/* 編輯 Modal */}
+          {/* 修改收件資訊 Modal */}
           {editOrder && (
             <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
               <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-sm overflow-hidden animate-scale-in">
@@ -1297,6 +1432,27 @@
               </div>
             </div>
           )}
+          {/* 修改預約取貨時間 Modal */}
+          {editPickupOrder && (
+            <div className="fixed inset-0 z-[9998] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white rounded-t-3xl w-full max-w-lg overflow-hidden animate-scale-in">
+                <div className="p-4 bg-amber-50 text-center border-b border-amber-100">
+                  <h3 className="text-lg font-bold text-gray-800">📅 修改預約取貨時間</h3>
+                  <p className="text-xs text-gray-500 mt-1">訂單 {editPickupOrder.orderId}</p>
+                  <div className="mt-2 text-xs text-amber-700 bg-amber-100 rounded-lg p-2">
+                    ⏰ 營業：週二～週日 11:30-20:00　🚫 週一公休
+                  </div>
+                </div>
+                <div className="p-5">
+                  <PickupTimePicker value={newPickupTime} onChange={setNewPickupTime} />
+                </div>
+                <div className="flex border-t border-gray-100">
+                  <button onClick={() => setEditPickupOrder(null)} className="flex-1 py-3 text-gray-500 font-bold border-r border-gray-100">取消</button>
+                  <button onClick={handlePickupTimeSave} className="flex-1 py-3 text-amber-600 font-bold">儲存並通知店家</button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="p-4 space-y-4">
             {loading ? <div className="text-center text-gray-400 py-10">載入中...</div> :
              !user || user.lineId==='guest' ? <div className="text-center text-gray-400 py-10">請先登入 LINE</div> :
@@ -1310,8 +1466,11 @@
               const statusInfo = getOrderStatusDisplay(order);
               const items = order.content?.items || order.items || [];
               const u = order.content?.user || {};
+              const method = order.deliveryMethod || order.content?.deliveryMethod;
+              const ptDisplay = order.content?.pickupTime || order.pickupTime || '';
               const canCancel = order.status==='Pending';
               const canEdit = order.status==='Pending';
+              const canEditPickup = method==='pickup' && order.status!=='Completed' && order.status!=='Cancelled';
               return (
                 <div key={order.orderId} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="p-4 border-b border-gray-50">
@@ -1336,6 +1495,18 @@
                       <div className="flex justify-between font-bold text-sm text-gray-800"><span>總金額</span><span>NT${order.content?.total || order.total}</span></div>
                       <div>收件人：{u.name} {u.phone}</div>
                       {u.address && <div>地址：{u.address}</div>}
+                      {/* 顯示預約取貨時間 */}
+                      {method==='pickup' && (
+                        <div className={`flex items-center gap-1.5 mt-1 ${ptDisplay ? 'text-amber-700 font-bold' : 'text-gray-400'}`}>
+                          📅 {ptDisplay ? `預約取貨：${ptDisplay}` : '未設定預約取貨時間'}
+                          {canEditPickup && (
+                            <button onClick={() => handlePickupTimeOpen(order)}
+                              className="ml-auto text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold border border-amber-200 active:scale-95 transition-transform">
+                              修改
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {order.content?.pointsEarned > 0 && order.status==='Completed' && (
                         <div className="text-lime-600 font-bold">✅ 已獲得 {order.content.pointsEarned} 點數</div>
                       )}
@@ -1833,7 +2004,7 @@
     const ProductDetail = () => {
       const { id } = useParams();
       const navigate = useNavigate();
-      const { addToCart, cart, allProducts, user } = useAppContext(); // ✅
+      const { addToCart, cart, allProducts } = useAppContext();
       const { showAlert } = useDialog();
       const [product, setProduct] = useState(null);
       const [loading, setLoading] = useState(true);
