@@ -536,7 +536,7 @@
                   {[
                     { icon: Icons.ClipboardList, label: '訂單紀錄', desc: '查看歷史訂單', color: 'text-lime-600 bg-lime-50', action: () => { navigate('/orders'); setShowDrawer(false); } },
                     { icon: Icons.Gift, label: '點數兌換', desc: `目前 ${user?.points||0} 點`, color: 'text-orange-500 bg-orange-50', action: () => { navigate('/redeem'); setShowDrawer(false); } },
-                    { icon: Icons.Tag, label: '活動優惠券', desc: '限時領取活動券', color: 'text-rose-500 bg-rose-50', action: () => { navigate('/campaigns'); setShowDrawer(false); } },
+                    { icon: Icons.Tag, label: '喜樂優惠券', desc: '專屬喜樂折扣', color: 'text-rose-500 bg-rose-50', action: () => { navigate('/campaigns'); setShowDrawer(false); } },
                     { icon: Icons.ShoppingBag, label: '購物說明', desc: '付款·取貨·退換貨', color: 'text-blue-500 bg-blue-50', action: () => { navigate('/instructions'); setShowDrawer(false); } },
                     { icon: Icons.User, label: '會員中心', desc: '個人資料·優惠券', color: 'text-purple-500 bg-purple-50', action: () => { navigate('/profile'); setShowDrawer(false); } },
                   ].map((item, i) => (
@@ -552,7 +552,7 @@
                   ))}
                   <div className="border-t border-gray-100 my-2 pt-2">
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-3 pb-2">帳戶工具</p>
-                    {/* 每日抽獎快捷 */}
+                    {/* 每日好運快捷 */}
                     {(() => {
                       const todayTW = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
                       const lastDay = user?.lastDrawDate ? String(user.lastDrawDate).substring(0,10) : '';
@@ -564,7 +564,7 @@
                             <Icons.Gift className="w-5 h-5" />
                           </div>
                           <div className="flex-1 text-left">
-                            <div className="font-medium text-gray-700 text-sm">每日抽獎</div>
+                            <div className="font-medium text-gray-700 text-sm">每日好運</div>
                             <div className={`text-xs ${canDraw?'text-orange-500 font-bold':'text-gray-400'}`}>{canDraw?'🎉 今天可以抽！':'今日已抽'}</div>
                           </div>
                           <Icons.ArrowLeft className="w-4 h-4 text-gray-300 rotate-180" />
@@ -861,7 +861,7 @@
               <h2 className="font-black text-gray-800">點數 & 優惠</h2>
             </div>
             <div className="p-5 space-y-2">
-              {['每消費滿額可獲得點數，累積後可兌換商品','生日當月可領取專屬生日禮優惠券','每日可抽一次每日好運優惠券','活動期間可限時領取活動優惠券'].map((t,i)=>(
+              {['每消費滿額可獲得點數，累積後可兌換商品','生日當月可領取專屬生日禮優惠券','每日可抽一次每日好運優惠券','活動期間可限時領取喜樂優惠券'].map((t,i)=>(
                 <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
                   <span className="text-lime-500 font-bold mt-0.5">✓</span><span>{t}</span>
                 </div>
@@ -1558,7 +1558,7 @@
       };
       const handleDailyLottery = async () => {
         if (!user) return;
-        if (!user.phone || !user.birthday) { showAlert('請先加入會員 (填寫手機與生日) 才能參加每日抽獎！'); setIsEditing(true); return; }
+        if (!user.phone || !user.birthday) { showAlert('請先加入會員 (填寫手機與生日) 才能參加每日好運！'); setIsEditing(true); return; }
         setIsLotterySpinning(true);
         try {
           // ✅ 根本修復：每次抽獎前先從 DB 重新拉取最新資料，不信任本地 state
@@ -1573,7 +1573,17 @@
           }
           const res = await api.post('drawDailyCoupon', { lineId: user.lineId });
           if (res?.success) {
-            showAlert(`🎉 恭喜獲得 ${res.coupon.title}！\n(滿 NT$${res.coupon.minSpend} 可用)`);
+            const blessings = [
+              '願今日萬事皆順，好運連連 🌟',
+              '福氣滿滿，心想事成 ✨',
+              '今天是個好日子，祝您幸福美滿 🍀',
+              '好運降臨，喜悅滿懷 🌈',
+              '願您諸事順遂，笑口常開 😊',
+              '今日好運報到，一切如願 🎋',
+              '祝福滿溢，平安喜樂 🕊️',
+            ];
+            const blessing = blessings[Math.floor(Math.random() * blessings.length)];
+            showAlert(`🎉 恭喜獲得 ${res.coupon.title}！\n(滿 NT$${res.coupon.minSpend} 可用)\n\n${blessing}`);
             setUser(prev => ({ ...prev, coupons: [...(prev.coupons||[]), res.coupon], lastDrawDate: todayTW }));
           } else { showAlert(res?.error || '抽獎失敗'); }
         } catch(e) { showAlert('發生錯誤，請稍後再試'); }
@@ -1618,7 +1628,7 @@
                     { icon:Icons.Home, label:'首頁', desc:'逛商品', color:'text-lime-600 bg-lime-50', action:()=>{ navigate('/'); setShowDrawer(false); } },
                     { icon:Icons.ClipboardList, label:'訂單紀錄', desc:'查看歷史訂單', color:'text-blue-500 bg-blue-50', action:()=>{ navigate('/orders'); setShowDrawer(false); } },
                     { icon:Icons.Gift, label:'點數兌換', desc:`持有 ${user?.points||0} 點`, color:'text-orange-500 bg-orange-50', action:()=>{ navigate('/redeem'); setShowDrawer(false); } },
-                    { icon:Icons.Tag, label:'活動優惠券', desc:'限時領取活動券', color:'text-rose-500 bg-rose-50', action:()=>{ navigate('/campaigns'); setShowDrawer(false); } },
+                    { icon:Icons.Tag, label:'喜樂優惠券', desc:'專屬喜樂折扣', color:'text-rose-500 bg-rose-50', action:()=>{ navigate('/campaigns'); setShowDrawer(false); } },
                     { icon:Icons.ShoppingBag, label:'購物說明', desc:'付款·取貨·退換', color:'text-purple-500 bg-purple-50', action:()=>{ navigate('/instructions'); setShowDrawer(false); } },
                     { icon:Icons.ShoppingCart, label:'購物車', desc:`${cart?.reduce((a,c)=>a+c.quantity,0)||0} 件商品`, color:'text-pink-500 bg-pink-50', action:()=>{ navigate('/cart'); setShowDrawer(false); } },
                   ].map((item,i) => (
@@ -1683,7 +1693,7 @@
                 <button onClick={handleDailyLottery} disabled={!canDraw||isLotterySpinning}
                   className={`flex-1 p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-1 ${canDraw?'bg-gradient-to-br from-yellow-100 to-orange-100 text-orange-600 active:scale-95':'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
                   <Icons.Gift className={`w-6 h-6 ${isLotterySpinning?'animate-spin':''}`} />
-                  <span className="font-bold text-xs">{canDraw?'每日抽獎':'今日已抽'}</span>
+                  <span className="font-bold text-xs">{canDraw?'每日好運':'今日已抽'}</span>
                 </button>
               </div>
               <div className="flex-[2] bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -1714,7 +1724,7 @@
                 const today = new Date().toISOString().split('T')[0];
                 const activeCoupons = (user.coupons||[]).filter(c => !c.usedAt && c.expiry >= today);
                 return activeCoupons.length === 0
-                  ? <div className="text-center text-gray-400 text-sm py-4">目前沒有可用優惠券<br/><button onClick={()=>navigate('/campaigns')} className="text-rose-500 font-bold mt-1 text-xs">前往領取活動券 →</button></div>
+                  ? <div className="text-center text-gray-400 text-sm py-4">目前沒有可用優惠券<br/><button onClick={()=>navigate('/campaigns')} className="text-rose-500 font-bold mt-1 text-xs">前往領取喜樂優惠券 →</button></div>
                   : <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
                     {activeCoupons.slice(0,3).map((coupon,idx) => (
                       <div key={idx} className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex justify-between items-center">
@@ -1732,7 +1742,7 @@
                 {e:'📋',l:'訂單紀錄',a:()=>navigate('/orders')},
                 {e:'🎟️',l:'我的優惠券',a:()=>navigate('/my-coupons')},
                 {e:'🎁',l:'點數兌換',a:()=>navigate('/redeem')},
-                {e:'🏷️',l:'活動優惠',a:()=>navigate('/campaigns')},
+                {e:'🏷️',l:'喜樂優惠',a:()=>navigate('/campaigns')},
                 {e:'🔍',l:'商品搜尋',a:()=>navigate('/?search=1')},
                 {e:'🛍️',l:'購買說明',a:()=>navigate('/instructions')},
                 {e:'💬',l:'聯絡客服',a:()=>{const id='705jtuuh';if(typeof liff!=='undefined'&&liff.isInClient())liff.openWindow({url:`https://line.me/R/ti/p/@${id}`,external:true});else window.open(`https://line.me/R/ti/p/@${id}`,'_blank');}},
@@ -1867,6 +1877,15 @@
       const [submitting, setSubmitting] = useState(false);
       const [showForm, setShowForm] = useState(false);
 
+      // 匿名遮罩：2字→蘇*；3字以上→王****晨（首尾+****）
+      const maskName = (name) => {
+        if (!name) return '匿名';
+        const n = String(name).trim();
+        if (n.length <= 1) return n;
+        if (n.length === 2) return n[0] + '*';
+        return n[0] + '****' + n[n.length - 1];
+      };
+
       useEffect(() => {
         api.get('getProductReviews', { productId: String(productId), productName }).then(r => {
           if (Array.isArray(r)) setReviews(r);
@@ -1983,7 +2002,7 @@
                       <div className="w-7 h-7 rounded-full bg-lime-200 flex items-center justify-center text-lime-700 font-bold text-xs">
                         {rv.userName ? rv.userName[0] : '?'}
                       </div>
-                      <span className="text-xs font-bold text-gray-700">{rv.userName || '匿名'}</span>
+                      <span className="text-xs font-bold text-gray-700">{maskName(rv.userName)}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <StarDisplay val={rv.rating} size="text-sm" />
@@ -2395,6 +2414,7 @@
       const [loading, setLoading] = useState(true);
       const [tab, setTab] = useState('dashboard');
       const [editProduct, setEditProduct] = useState(null);
+      const [uploadingImg, setUploadingImg] = useState(false); // 圖片上傳中
       // campaigns
       const [campaigns, setCampaigns] = useState([]);
       const [editCampaign, setEditCampaign] = useState(null);
@@ -2607,7 +2627,66 @@
                   </div>
                   <div><label className="text-xs text-gray-500 block mb-1">庫存 (多規格用逗號: 33,44,55)</label><input value={editProduct.stock||''} onChange={e=>setEditProduct({...editProduct,stock:e.target.value})} className="w-full p-2 border rounded-lg" placeholder="例: 50 或 33,44,55" /></div>
                   <div><label className="text-xs text-gray-500 block mb-1">商品說明</label><textarea value={editProduct.description||''} onChange={e=>setEditProduct({...editProduct,description:e.target.value})} className="w-full p-2 border rounded-lg" rows={3} /></div>
-                  <div><label className="text-xs text-gray-500 block mb-1">圖片連結 (多個用逗號分隔)</label><input value={Array.isArray(editProduct.images)?editProduct.images.join(','):(editProduct.images||'')} onChange={e=>setEditProduct({...editProduct,images:e.target.value.split(',').map(s=>s.trim())})} className="w-full p-2 border rounded-lg" /></div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">商品圖片</label>
+                    {/* 預覽已有圖片 */}
+                    {(()=>{
+                      const imgs = Array.isArray(editProduct.images) ? editProduct.images.filter(Boolean) : (editProduct.images||'').split(',').map(s=>s.trim()).filter(Boolean);
+                      return imgs.length > 0 ? (
+                        <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
+                          {imgs.map((url,i)=>(
+                            <div key={i} className="relative flex-shrink-0">
+                              <img src={url} className="w-20 h-20 rounded-lg object-cover border border-gray-200" referrerPolicy="no-referrer" onError={e=>{e.target.style.display='none'}} />
+                              <button onClick={()=>{
+                                const newImgs = imgs.filter((_,idx)=>idx!==i);
+                                setEditProduct({...editProduct, images: newImgs});
+                              }} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center font-bold shadow">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                    {/* 從相簿選擇上傳 */}
+                    <label className={`w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${uploadingImg?'border-gray-200 bg-gray-50':'border-lime-300 bg-lime-50 hover:bg-lime-100'}`}>
+                      <input type="file" accept="image/*" multiple className="hidden" disabled={uploadingImg}
+                        onChange={async(e)=>{
+                          const files = Array.from(e.target.files||[]);
+                          if(!files.length) return;
+                          setUploadingImg(true);
+                          try {
+                            const newUrls = [];
+                            for(const file of files.slice(0,5)){
+                              const base64 = await new Promise((res,rej)=>{
+                                const reader = new FileReader();
+                                reader.onload = ()=>res(reader.result.split(',')[1]);
+                                reader.onerror = rej;
+                                reader.readAsDataURL(file);
+                              });
+                              const r = await api.post('uploadProductImage',{ adminId:user.lineId, fileName:file.name, mimeType:file.type, base64Data:base64 });
+                              if(r?.url) newUrls.push(r.url);
+                              else if(r?.error) { showAlert('上傳失敗：' + r.error); break; }
+                            }
+                            if(newUrls.length > 0){
+                              const existing = Array.isArray(editProduct.images) ? editProduct.images.filter(Boolean) : (editProduct.images||'').split(',').map(s=>s.trim()).filter(Boolean);
+                              setEditProduct({...editProduct, images:[...existing,...newUrls]});
+                            }
+                          } catch(err){ showAlert('上傳時發生錯誤：'+err.message); }
+                          setUploadingImg(false);
+                          e.target.value='';
+                        }}
+                      />
+                      {uploadingImg
+                        ? <><span className="text-gray-400 text-sm animate-pulse">上傳中...</span></>
+                        : <><span className="text-2xl">📷</span><span className="text-lime-700 font-bold text-sm">從相簿選擇照片（可多選）</span></>
+                      }
+                    </label>
+                    {/* 手動貼網址 */}
+                    <div className="mt-2">
+                      <input value={Array.isArray(editProduct.images)?editProduct.images.join(','):(editProduct.images||'')}
+                        onChange={e=>setEditProduct({...editProduct,images:e.target.value.split(',').map(s=>s.trim())})}
+                        className="w-full p-2 border rounded-lg text-xs text-gray-500" placeholder="或直接貼上圖片網址（多個用逗號分隔）" />
+                    </div>
+                  </div>
                   <div><label className="text-xs text-gray-500 block mb-1">影片連結 (YouTube / Facebook)</label><input value={editProduct.videoUrl||''} onChange={e=>setEditProduct({...editProduct,videoUrl:e.target.value})} className="w-full p-2 border rounded-lg" placeholder="https://youtu.be/..." /></div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="text-xs text-gray-500 block mb-1">規格選項 (逗號分隔)</label><input value={Array.isArray(editProduct.variants)?editProduct.variants.join(','):(editProduct.variants||'')} onChange={e=>setEditProduct({...editProduct,variants:e.target.value.split(',').map(s=>s.trim()).filter(s=>s)})} className="w-full p-2 border rounded-lg" placeholder="S,M,L,XL" /></div>
@@ -2690,9 +2769,9 @@
               {[
                 {id:'dashboard',label:'📊 總覽'},
                 {id:'orders',label:'📦 訂單'},
+                {id:'products',label:'🛍 商品'},
                 {id:'redemptions',label:'🎁 兌換'},
                 {id:'users',label:'👥 用戶'},
-                {id:'products',label:'🛍 商品'},
                 {id:'inventory',label:'📦 庫存'},
                 {id:'campaigns',label:'🎟 活動券'},
                 {id:'report',label:'📈 報表'},
@@ -3225,7 +3304,7 @@
                     <div className="border-t pt-4">
                       <h4 className="font-bold text-base mb-3">🎰 每日好運設定</h4>
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 mb-3">
-                        每日抽獎共三個獎項，由高到低機率：<br/>
+                        每日好運共三個獎項，由高到低機率：<br/>
                         獎1（普通）：剩餘機率 | 獎2（中獎）：設定機率 | 獎3（大獎）：設定機率
                       </div>
                       {[
@@ -3324,7 +3403,7 @@
               ? <div className="text-center py-16 text-gray-400">
                   <div className="text-5xl mb-3">🎟️</div>
                   <div className="font-bold">沒有可用的優惠券</div>
-                  <button onClick={()=>navigate('/campaigns')} className="mt-3 text-rose-500 font-bold text-sm">前往領取活動券 →</button>
+                  <button onClick={()=>navigate('/campaigns')} className="mt-3 text-rose-500 font-bold text-sm">前往領取喜樂優惠券 →</button>
                 </div>
               : active.map((c,i)=><CouponCard key={i} c={c} dim={false} />)
             )}
@@ -3410,7 +3489,7 @@
             <div className="flex items-center gap-3 relative z-10">
               <button onClick={() => navigate(-1)} className="p-2 rounded-xl bg-white/20"><Icons.ArrowLeft className="w-5 h-5" /></button>
               <div>
-                <h1 className="text-2xl font-black">🎁 活動優惠券</h1>
+                <h1 className="text-2xl font-black">🎟 喜樂優惠券</h1>
                 <p className="text-rose-100 text-sm mt-0.5">限時領取，數量有限</p>
               </div>
             </div>
@@ -3419,7 +3498,7 @@
                 <img src={user.pictureUrl||'https://via.placeholder.com/32'} className="w-9 h-9 rounded-full border-2 border-white/40" referrerPolicy="no-referrer" />
                 <div>
                   <div className="text-white font-bold text-sm">{user.name}</div>
-                  <div className="text-rose-100 text-xs">已持有 {(user.coupons||[]).filter(c=>c.type==='campaign').length} 張活動券</div>
+                  <div className="text-rose-100 text-xs">已持有 {(user.coupons||[]).filter(c=>c.type==='campaign').length} 張喜樂優惠券</div>
                 </div>
               </div>
             )}
