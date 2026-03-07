@@ -287,8 +287,8 @@
       return (
         <AppContext.Provider value={{
           cart, addToCart, updateQuantity, clearCart: () => setCart([]), cartTotal,
-          user, setUser, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed,
-          redeemableProducts, allProducts, allCategories,
+          user, setUser, settings, setSettings, shippingFee, cvsFee, isFreeShipping, pointsUsed,
+          redeemableProducts, allProducts, setAllProducts, allCategories, setAllCategories,
           updateUserProfile: (p) => { const nu = { ...user, ...p }; setUser(nu); api.updateUserProfile(nu); },
           redeemItem: (p) => {
             if ((user.points||0) < p.redeemPoints) return false;
@@ -478,7 +478,19 @@
     // 頁面：首頁
     // =====================================================
     const Home = () => {
-      const { settings, user, allProducts, allCategories } = useAppContext();
+      const [refreshing, setRefreshing] = useState(false);
+      const { settings, user, allProducts, allCategories, setAllProducts, setAllCategories, setSettings } = useAppContext();
+      const handleRefresh = async () => {
+        if (refreshing) return;
+        setRefreshing(true);
+        try {
+          const [s, p, c] = await Promise.all([api.fetchSettings(), api.fetchProducts(), api.fetchCategories()]);
+          if (s) setSettings(s);
+          if (p) setAllProducts(p);
+          if (c && Array.isArray(c)) setAllCategories(c);
+        } catch(e) { console.error('Refresh failed', e); }
+        setRefreshing(false);
+      };
       const navigate = useNavigate();
       const [activeCat, setActiveCat] = useState('all');
       const [iconSize, setIconSize] = useState('M');
@@ -756,6 +768,9 @@
             )}
             <button onClick={() => setShowSizeMenu(!showSizeMenu)} className="w-12 h-12 bg-white text-lime-600 rounded-full shadow-lg border border-lime-100 flex items-center justify-center">
               <Icons.LayoutGrid size={20} />
+            </button>
+            <button onClick={handleRefresh} disabled={refreshing} className="w-12 h-12 bg-white text-lime-600 rounded-full shadow-lg border border-lime-100 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-50">
+              <Icons.RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
             </button>
           </div>
           <BottomNav active={showSearch ? 'search' : 'home'} onSearchClick={()=>{setShowSearch(true);setTimeout(()=>searchInputRef.current?.focus(),80);}} />
@@ -1768,7 +1783,12 @@
                       {['male','female'].map(g => <label key={g} className="flex items-center gap-2"><input type="radio" name="gender" value={g} checked={formData.gender===g} onChange={e=>setFormData({...formData,gender:e.target.value})} /><span className="text-sm">{g==='male'?'男':'女'}</span></label>)}
                     </div>
                   </div>
-                  <div><label className="text-xs text-gray-500 block mb-1">生日</label><input type="date" value={formData.birthday||''} onChange={e=>setFormData({...formData,birthday:e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50" /><p className="text-xs text-lime-600 mt-1">*填寫生日可獲得專屬生日禮</p></div>
+                  <div><label className="text-xs text-gray-500 block mb-1">生日</label>
+                    {user.birthday && !needsRegistration
+                      ? <div className="w-full p-2 border rounded-lg bg-gray-100 text-gray-500 text-sm flex items-center gap-2">🎂 {user.birthday} <span className="text-xs text-gray-400 ml-auto">（生日填寫後不可修改）</span></div>
+                      : <><input type="date" value={formData.birthday||''} onChange={e=>setFormData({...formData,birthday:e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50" /><p className="text-xs text-lime-600 mt-1">*填寫生日可獲得專屬生日禮（填寫後不可修改）</p></>
+                    }
+                  </div>
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">常用收件地址 <span className="text-gray-400">（選填，宅配時自動帶入）</span></label>
                     <TaiwanAddressSelector value={formData.address||''} onChange={addr=>setFormData({...formData,address:addr})} />
@@ -1792,9 +1812,25 @@
             {/* 許願池 */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Icons.Gift className="w-5 h-5 text-lime-600" />許願池</h3>
-              <textarea placeholder="想要什麼商品？或是對我們有什麼建議？" value={formData.wishlist||user.wishlist||''} onChange={e=>setFormData({...formData,wishlist:e.target.value})} onBlur={() => updateUserProfile({...user,wishlist:formData.wishlist})} className="w-full p-3 border rounded-xl bg-gray-50 text-sm min-h-[100px]" />
+              <textarea placeholder="想要什麼商品？或是對我們有什麼建議？" value={formData.wishlist||user.wishlist||''} onChange={e=>setFormData({...formData,wishlist:e.target.value})} onBlur={() => updateUserProfile({...user,wishlist:formData.wishlist||user.wishlist})} className="w-full p-3 border rounded-xl bg-gray-50 text-sm min-h-[100px]" />
               <div className="text-right mt-2">
-                <button onClick={() => { updateUserProfile({...user,wishlist:formData.wishlist}); showAlert('許願已送出！'); }} className="bg-lime-100 text-lime-700 px-4 py-1.5 rounded-full text-xs font-bold">送出許願</button>
+                <button onClick={async () => {
+                  const wishText = (formData.wishlist||user.wishlist||'').trim();
+                  if (!wishText) { showAlert('請先輸入許願內容'); return; }
+                  await updateUserProfile({...user, wishlist: wishText});
+                  // 透過 LIFF 傳送訊息到 LINE 官方帳號對話
+                  const msg = `我要許願：「${wishText}」`;
+                  if (typeof liff !== 'undefined' && liff.isInClient() && liff.isApiAvailable('sendMessages')) {
+                    try {
+                      await liff.sendMessages([{ type: 'text', text: msg }]);
+                      showAlert('✨ 許願已送出！\n訊息已傳送到 LINE 對話 💌');
+                    } catch(e) {
+                      showAlert('許願已儲存！（LINE 訊息傳送失敗：' + e.message + '）');
+                    }
+                  } else {
+                    showAlert('許願已儲存！（請在 LINE 中開啟以傳送訊息）');
+                  }
+                }} className="bg-lime-100 text-lime-700 px-4 py-1.5 rounded-full text-xs font-bold">送出許願 💌</button>
               </div>
             </div>
           </div>
@@ -1876,6 +1912,8 @@
       const [comment, setComment] = useState('');
       const [submitting, setSubmitting] = useState(false);
       const [showForm, setShowForm] = useState(false);
+      const [hasPurchased, setHasPurchased] = useState(false); // 是否有已完成訂單含此商品
+      const [purchasedOrderId, setPurchasedOrderId] = useState(''); // 對應訂單ID
 
       // 匿名遮罩：2字→蘇*；3字以上→王****晨（首尾+****）
       const maskName = (name) => {
@@ -1899,6 +1937,22 @@
               if (mine) { setMyReview(mine); setRating(mine.rating); setComment(mine.comment || ''); }
             }
           });
+          // ✅ 檢查是否有已完成訂單包含此商品
+          api.get('getUserOrders', { lineId: user.lineId }).then(orders => {
+            if (!Array.isArray(orders)) return;
+            const completedOrders = orders.filter(o => o.status === 'Completed');
+            for (const order of completedOrders) {
+              const items = order.content?.items || order.items || [];
+              const found = Array.isArray(items) && items.find(item =>
+                String(item.id) === String(productId) || item.name === productName
+              );
+              if (found) {
+                setHasPurchased(true);
+                setPurchasedOrderId(order.orderId || order.id || '');
+                break;
+              }
+            }
+          });
         }
       }, [productId]);
 
@@ -1906,12 +1960,13 @@
 
       const handleSubmitReview = async () => {
         if (!user || user.lineId === 'guest') { showAlert('請先登入才能留下評論'); return; }
+        if (!hasPurchased) { showAlert('您尚未購買此商品，或訂單未完成，無法評論'); return; }
         if (!rating) { showAlert('請選擇星級評分'); return; }
         setSubmitting(true);
         try {
           const r = await api.post('submitReview', {
             lineId: user.lineId, userName: user.name,
-            orderId: 'DIRECT', // 直接從商品頁評論，不綁定訂單
+            orderId: purchasedOrderId || 'VERIFIED',
             itemId: String(productId), itemName: productName, rating, comment
           });
           if (r?.success) {
@@ -1944,10 +1999,12 @@
               )}
             </div>
             {!myReview && user?.lineId !== 'guest' && (
-              <button onClick={() => setShowForm(f => !f)}
-                className="text-xs font-bold text-lime-600 border border-lime-300 px-3 py-1.5 rounded-xl active:scale-95 transition-transform bg-lime-50">
-                {showForm ? '取消' : '✍️ 寫評論'}
-              </button>
+              hasPurchased
+                ? <button onClick={() => setShowForm(f => !f)}
+                    className="text-xs font-bold text-lime-600 border border-lime-300 px-3 py-1.5 rounded-xl active:scale-95 transition-transform bg-lime-50">
+                    {showForm ? '取消' : '✍️ 寫評論'}
+                  </button>
+                : <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">需完成購買才可評論</span>
             )}
           </div>
 
@@ -3696,7 +3753,38 @@
     // =====================================================
     // App Root
     // =====================================================
-    const App = () => (
+    const App = () => {
+      // ✅ 電腦版偵測：非手機且非 LIFF 環境顯示提示頁
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const isLiffClient = typeof liff !== 'undefined' && (() => { try { return liff.isInClient(); } catch(e) { return false; } })();
+      if (!isMobile && !isLiffClient) {
+        return (
+          <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#4ade80 0%,#22c55e 50%,#16a34a 100%)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'system-ui,sans-serif',padding:'24px'}}>
+            <div style={{background:'white',borderRadius:'24px',padding:'40px 32px',maxWidth:'420px',width:'100%',textAlign:'center',boxShadow:'0 20px 60px rgba(0,0,0,0.15)'}}>
+              <div style={{fontSize:'64px',marginBottom:'16px'}}>📱</div>
+              <h1 style={{fontSize:'22px',fontWeight:'900',color:'#166534',marginBottom:'8px'}}>請使用手機 LINE 開啟</h1>
+              <p style={{color:'#4b5563',fontSize:'14px',lineHeight:'1.7',marginBottom:'24px'}}>
+                訪客無法在電腦版瀏覽器購買<br/>
+                請在 LINE 手機中加入「美好的事」LINE 官方帳號
+              </p>
+              <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'16px',padding:'20px',marginBottom:'24px',textAlign:'left'}}>
+                <p style={{color:'#166534',fontSize:'13px',lineHeight:'1.8',margin:0}}>
+                  別錯過我們的最新消息！快加入 LINE 好友獲得限定的優惠資訊。<br/>
+                  透過以下連結將官方帳號加入好友吧。
+                </p>
+              </div>
+              <a href="https://lin.ee/5gUfccO" target="_blank" rel="noreferrer"
+                style={{display:'inline-flex',alignItems:'center',gap:'10px',background:'#06C755',color:'white',borderRadius:'12px',padding:'14px 28px',fontWeight:'800',fontSize:'16px',textDecoration:'none',boxShadow:'0 4px 12px rgba(6,199,85,0.4)'}}>
+                <span style={{fontSize:'20px'}}>💚</span> 加入 LINE 好友
+              </a>
+              <div style={{marginTop:'16px',fontSize:'12px',color:'#9ca3af'}}>
+                https://lin.ee/5gUfccO
+              </div>
+            </div>
+          </div>
+        );
+      }
+      return (
       <ErrorBoundary>
         <AppProvider>
           <DialogProvider>
@@ -3719,6 +3807,7 @@
         </AppProvider>
       </ErrorBoundary>
     );
+    };
     try {
       const container = document.getElementById('root');
       if (!container) throw new Error('Root element not found');
