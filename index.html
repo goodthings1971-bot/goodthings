@@ -63,11 +63,42 @@
     };
   </script>
   <div id="root">
-    <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#fefce8;">
-      <div style="width:48px;height:48px;border:4px solid #d9f99d;border-top-color:#65a30d;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+    <div id="initial-loading" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0fdf4 0%,#ffffff 50%,#ecfdf5 100%);padding:24px;font-family:system-ui,-apple-system,sans-serif;">
+      <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:32px;">
+        <div style="width:80px;height:80px;background:linear-gradient(135deg,#4ade80,#10b981);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 8px 24px rgba(74,222,128,0.35);margin-bottom:16px;">🌿</div>
+        <div style="font-size:24px;font-weight:900;color:#15803d;letter-spacing:0.05em;">美好的事</div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+          <span style="background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #bbf7d0;">V2.02</span>
+          <span style="color:#9ca3af;font-size:12px;">正在為您載入...</span>
+        </div>
+      </div>
+      <div style="position:relative;margin-bottom:40px;">
+        <div style="width:56px;height:56px;border:4px solid #dcfce7;border-top-color:#22c55e;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+          <div style="width:24px;height:24px;background:#22c55e;border-radius:50%;opacity:0.2;animation:ping 1s ease-in-out infinite;"></div>
+        </div>
+      </div>
+      <div style="width:100%;max-width:300px;">
+        <div style="text-align:center;font-size:11px;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">購物流程</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${[['🛍️','瀏覽商品','精選好物等你發現'],['🛒','加入購物車','收藏心儀商品'],['📝','填寫資料','選取貨、填收件資訊'],['💳','完成付款','轉帳/門市/超商取貨'],['🎁','收到商品','享受美好生活']].map(([icon,label,desc],i)=>`
+          <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.8);border-radius:16px;padding:12px 16px;border:1px solid #f3f4f6;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+            <div style="width:36px;height:36px;background:linear-gradient(135deg,#4ade80,#34d399);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${icon}</div>
+            <div style="flex:1;">
+              <div style="font-weight:700;color:#374151;font-size:13px;">${label}</div>
+              <div style="color:#9ca3af;font-size:11px;">${desc}</div>
+            </div>
+            <div style="width:22px;height:22px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:900;border-radius:50%;display:flex;align-items:center;justify-content:center;">${i+1}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div style="margin-top:28px;font-size:11px;color:#d1d5db;">© 2026 美好的事 · 讓生活更美好</div>
     </div>
   </div>
-  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  <style>
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes ping{0%,100%{transform:scale(1);opacity:0.2}50%{transform:scale(1.4);opacity:0.5}}
+  </style>
   <script type="text/babel">
     console.log('Step 1: Script started');
     if (typeof React === 'undefined') console.error('React missing');
@@ -297,7 +328,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.01</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.02</span>
                 <span className="text-gray-400 text-xs">正在為您載入...</span>
               </div>
             </div>
@@ -324,7 +355,7 @@
                 ))}
               </div>
             </div>
-            <p className="mt-8 text-xs text-gray-300">© 2025 美好的事 · 讓生活更美好</p>
+            <p className="mt-8 text-xs text-gray-300">© 2026 美好的事 · 讓生活更美好</p>
           </div>
         );
       }
@@ -2153,13 +2184,18 @@
     const ProductDetail = () => {
       const { id } = useParams();
       const navigate = useNavigate();
-      const { addToCart, cart, allProducts, user } = useAppContext();
+      const { addToCart, cart, allProducts, user, settings } = useAppContext();
       const { showAlert } = useDialog();
       const [product, setProduct] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       const [selectedVariant, setSelectedVariant] = useState(null);
       const [addedAnim, setAddedAnim] = useState(false);
+
+      // ── 圖片輪播 hooks（必須在所有 early return 之前）──
+      const [imgIdx, setImgIdx] = useState(0);
+      const [lightbox, setLightbox] = useState(false);
+      const touchStartX = React.useRef(null);
 
       // 購物車總數（用於角標）
       const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
@@ -2189,6 +2225,16 @@
           setLoading(false);
         }).catch(() => { setError('發生錯誤'); setLoading(false); });
       }, [id, allProducts]);
+
+      // ── 自動輪播 useEffect（在 early return 之前）──
+      useEffect(() => {
+        const imgs = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
+        const count = imgs.length;
+        if (count <= 1) return;
+        const sec = Number(settings?.carouselSeconds) || 4;
+        const t = setInterval(() => setImgIdx(i => (i+1) % count), sec * 1000);
+        return () => clearInterval(t);
+      }, [product, settings]);
 
       // ✅ 解析各規格庫存：格式 "3,5" 對應 variants [X, XL]
       const getVariantStock = (product, variantName) => {
@@ -2255,19 +2301,10 @@
       const totalStock = getTotalStock(product);
       const hasVariants = product.variants && product.variants.length > 0;
 
-      // ── 圖片輪播 ──────────────────────────────────────────
-      const images = Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean);
+      // ── 圖片輪播計算（hooks 已在上方宣告）──
+      const images = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
       const imgCount = images.length || 1;
-      const [imgIdx, setImgIdx] = React.useState(0);
-      const [lightbox, setLightbox] = React.useState(false);
       const carouselSec = Number(settings?.carouselSeconds) || 4;
-      const touchStartX = React.useRef(null);
-      // 自動輪播
-      React.useEffect(() => {
-        if (imgCount <= 1) return;
-        const t = setInterval(() => setImgIdx(i => (i+1) % imgCount), carouselSec * 1000);
-        return () => clearInterval(t);
-      }, [imgCount, carouselSec]);
       const goPrev = () => setImgIdx(i => (i - 1 + imgCount) % imgCount);
       const goNext = () => setImgIdx(i => (i + 1) % imgCount);
 
@@ -3181,6 +3218,7 @@
                 )}
                 {/* 訂單 */}
                 {tab==='orders' && (
+                  loading ? <div className="text-center text-gray-400 py-10 flex flex-col items-center gap-2"><div className="w-8 h-8 border-3 border-gray-200 border-t-lime-500 rounded-full animate-spin"></div><span className="text-sm">載入訂單中...</span></div> :
                   orders.length===0 ? <div className="text-center text-gray-400 py-10">無訂單資料</div> :
                   orders.map(order => {
                     const statusInfo = getOrderStatusDisplay(order);
@@ -3217,6 +3255,7 @@
                 )}
                 {/* 兌換 */}
                 {tab==='redemptions' && (
+                  loading ? <div className="text-center text-gray-400 py-10 flex flex-col items-center gap-2"><div className="w-8 h-8 border-3 border-gray-200 border-t-lime-500 rounded-full animate-spin"></div><span className="text-sm">載入兌換中...</span></div> :
                   redemptions.length===0 ? <div className="text-center text-gray-400 py-10">無兌換資料</div> :
                   redemptions.map(r => (
                     <div key={r.redemptionId} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
@@ -3239,6 +3278,10 @@
                 {/* 用戶 */}
                 {tab==='users' && (
                   <div className="space-y-3">
+                    {loading && <div className="text-center text-gray-400 py-10 flex flex-col items-center gap-2"><div className="w-8 h-8 border-3 border-gray-200 border-t-lime-500 rounded-full animate-spin"></div><span className="text-sm">載入用戶中...</span></div>}
+                    {!loading && (
+                    {!loading && (
+                    <React.Fragment>
                     {/* 調整點數 Modal */}
                     {adjustTarget && (
                       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
@@ -3286,6 +3329,8 @@
                         ))}
                       </div>
                     </div>
+                    </React.Fragment>
+                    )}
                   </div>
                 )}
                 {/* 商品管理 */}
