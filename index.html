@@ -280,12 +280,54 @@
       const shippingFee = isFreeShipping ? 0 : (settings?.shippingFee || 100);   // 宅配運費
       const cvsFee = isFreeShipping ? 0 : (settings?.cvsFee || 60);              // 超商運費
 
-      if (isLoading) return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-lime-600">
-          <div className="w-12 h-12 border-4 border-lime-200 border-t-lime-600 rounded-full animate-spin mb-4"></div>
-          <div className="font-bold text-lg">美好正在發生...</div>
-        </div>
-      );
+      if (isLoading) {
+        const steps = [
+          { icon:'🛍️', label:'瀏覽商品', desc:'精選好物等你發現' },
+          { icon:'🛒', label:'加入購物車', desc:'收藏心儀商品' },
+          { icon:'📝', label:'填寫資料', desc:'選取貨、填收件資訊' },
+          { icon:'💳', label:'完成付款', desc:'轉帳/門市/超商取貨' },
+          { icon:'🎁', label:'收到商品', desc:'享受美好生活' },
+        ];
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-lime-50 via-white to-emerald-50 px-6">
+            {/* Logo */}
+            <div className="flex flex-col items-center mb-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-3xl flex items-center justify-center shadow-xl shadow-lime-200 mb-4">
+                <span className="text-4xl">🌿</span>
+              </div>
+              <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.01</span>
+                <span className="text-gray-400 text-xs">正在為您載入...</span>
+              </div>
+            </div>
+            {/* 轉圈動畫 */}
+            <div className="relative mb-10">
+              <div className="w-14 h-14 border-4 border-lime-100 border-t-lime-500 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-6 h-6 bg-lime-500 rounded-full opacity-20 animate-ping"></div>
+              </div>
+            </div>
+            {/* 購物流程卡片 */}
+            <div className="w-full max-w-xs">
+              <p className="text-center text-xs text-gray-400 font-bold uppercase tracking-wider mb-4">購物流程</p>
+              <div className="space-y-2.5">
+                {steps.map((s, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
+                    <div className="w-9 h-9 bg-gradient-to-br from-lime-400 to-emerald-400 rounded-xl flex items-center justify-center shadow-sm text-lg flex-shrink-0">{s.icon}</div>
+                    <div className="flex-1">
+                      <div className="font-bold text-gray-700 text-sm leading-tight">{s.label}</div>
+                      <div className="text-gray-400 text-xs">{s.desc}</div>
+                    </div>
+                    <div className="w-6 h-6 rounded-full bg-lime-100 text-lime-600 text-xs font-black flex items-center justify-center">{i+1}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="mt-8 text-xs text-gray-300">© 2025 美好的事 · 讓生活更美好</p>
+          </div>
+        );
+      }
       return (
         <AppContext.Provider value={{
           cart, addToCart, updateQuantity, clearCart: () => setCart([]), cartTotal,
@@ -1003,12 +1045,15 @@
       const [completedOrderId, setCompletedOrderId] = useState('');
       const [copiedBank, setCopiedBank] = useState('');
 
+      const allVirtual = cart.length > 0 && cart.every(i => i.isVirtual);
+
       // 切換取貨方式時自動設定預設付款方式
       React.useEffect(() => {
+        if (allVirtual) { setDeliveryMethod('virtual'); setPaymentMethod('transfer'); return; }
         if (deliveryMethod === 'pickup') setPaymentMethod('store');
         else if (deliveryMethod === 'cvs') setPaymentMethod('cod');
         else setPaymentMethod('transfer'); // 宅配只有轉帳
-      }, [deliveryMethod]);
+      }, [deliveryMethod, allVirtual]);
 
       let discountAmount = selectedCoupon ? selectedCoupon.value : 0;
       // 依取貨方式套用對應運費
@@ -1042,13 +1087,15 @@
       const handleSubmit = async () => {
         if (cart.length === 0) return;
         if (!user?.phone) { showAlert('請先至會員中心填寫手機號碼'); navigate('/profile'); return; }
-        if (deliveryMethod==='cvs' && (!cvsType || !formData.storeName)) { showAlert('請選擇超商並填寫門市名稱'); return; }
-        if (deliveryMethod==='shipping') {
-          const addrErr = validateShippingAddress(formData.address);
-          if (addrErr) { showAlert(addrErr); return; }
+        if (!allVirtual) {
+          if (deliveryMethod==='cvs' && (!cvsType || !formData.storeName)) { showAlert('請選擇超商並填寫門市名稱'); return; }
+          if (deliveryMethod==='shipping') {
+            const addrErr = validateShippingAddress(formData.address);
+            if (addrErr) { showAlert(addrErr); return; }
+          }
         }
         // ── 店取：送出前提示營業時間 ──────────────────────
-        if (deliveryMethod === 'pickup') {
+        if (!allVirtual && deliveryMethod === 'pickup') {
           const ptLine = pickupTime ? `\n📅 預約取貨：${pickupTime}` : '\n（未填預約時間，建議事先聯繫確認）';
           const ok = await showConfirm(
             `🏪 店面取貨注意事項\n\n⏰ 營業時間\n  週二 ～ 週日\n  11:30 ～ 20:00\n  🚫 週一公休${ptLine}\n\n確認送出訂單？`,
@@ -1226,6 +1273,12 @@
                 </div>
               ) : <div className="text-center text-gray-400 text-sm py-2">無可用優惠券</div>}
             </div>
+            {allVirtual ? (
+              <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100 text-sm text-purple-700 flex items-center gap-2">
+                <span className="text-xl">🔮</span>
+                <div><div className="font-bold">虛擬商品</div><div className="text-xs text-purple-500">此訂單為虛擬商品，無需選擇取貨方式</div></div>
+              </div>
+            ) : (
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
               <h3 className="font-bold text-gray-800">取貨方式</h3>
               <div className="grid grid-cols-3 gap-2">
@@ -1283,6 +1336,7 @@
                 </div>
               )}
             </div>
+            )}
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
               <h3 className="font-bold text-gray-800">付款方式</h3>
               <div className="space-y-2">
@@ -2201,22 +2255,80 @@
       const totalStock = getTotalStock(product);
       const hasVariants = product.variants && product.variants.length > 0;
 
+      // ── 圖片輪播 ──────────────────────────────────────────
+      const images = Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean);
+      const imgCount = images.length || 1;
+      const [imgIdx, setImgIdx] = React.useState(0);
+      const [lightbox, setLightbox] = React.useState(false);
+      const carouselSec = Number(settings?.carouselSeconds) || 4;
+      const touchStartX = React.useRef(null);
+      // 自動輪播
+      React.useEffect(() => {
+        if (imgCount <= 1) return;
+        const t = setInterval(() => setImgIdx(i => (i+1) % imgCount), carouselSec * 1000);
+        return () => clearInterval(t);
+      }, [imgCount, carouselSec]);
+      const goPrev = () => setImgIdx(i => (i - 1 + imgCount) % imgCount);
+      const goNext = () => setImgIdx(i => (i + 1) % imgCount);
+
       return (
         <div className="min-h-screen bg-white pb-28">
-          {/* 商品圖片 */}
-          <div className="relative bg-gray-100">
-            <img
-              src={product.images?.[0] || 'https://picsum.photos/400/400'}
-              alt={product.name}
-              className="w-full aspect-square object-cover"
-              referrerPolicy="no-referrer"
-            />
-            {/* 返回 & 購物車角標 */}
+          {/* ── 燈箱放大 ── */}
+          {lightbox && (
+            <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center" onClick={() => setLightbox(false)}>
+              <button className="absolute top-5 right-5 text-white text-3xl font-bold z-10 bg-black/40 w-10 h-10 rounded-full flex items-center justify-center">×</button>
+              {imgCount > 1 && <button onClick={e=>{e.stopPropagation();goPrev();}} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl z-10">‹</button>}
+              <img src={images[imgIdx]||''} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" onClick={e=>e.stopPropagation()} />
+              {imgCount > 1 && <button onClick={e=>{e.stopPropagation();goNext();}} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl z-10">›</button>}
+              {imgCount > 1 && <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5">{images.map((_,i)=><span key={i} className={`w-2 h-2 rounded-full transition-all ${i===imgIdx?'bg-white scale-125':'bg-white/40'}`}/>)}</div>}
+            </div>
+          )}
+          {/* ── 商品圖片輪播 ── */}
+          <div className="relative bg-gray-100 overflow-hidden select-none"
+            onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={e => {
+              if (touchStartX.current === null) return;
+              const dx = e.changedTouches[0].clientX - touchStartX.current;
+              if (Math.abs(dx) > 40) { dx < 0 ? goNext() : goPrev(); }
+              touchStartX.current = null;
+            }}>
+            <div className="relative aspect-square w-full cursor-zoom-in" onClick={() => setLightbox(true)}>
+              {images.length > 0
+                ? <img src={images[imgIdx]} alt={product.name} className="w-full h-full object-cover transition-opacity duration-500" referrerPolicy="no-referrer" />
+                : <div className="w-full h-full flex items-center justify-center text-gray-400">無圖片</div>
+              }
+              {/* 點擊放大提示 */}
+              <div className="absolute bottom-3 right-3 bg-black/40 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">🔍 點擊放大</div>
+            </div>
+            {/* 左右切換箭頭 */}
+            {imgCount > 1 && <>
+              <button onClick={e=>{e.stopPropagation();goPrev();}} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 text-gray-800 w-9 h-9 rounded-full flex items-center justify-center shadow-md text-lg font-bold backdrop-blur-sm active:scale-90 transition-transform">‹</button>
+              <button onClick={e=>{e.stopPropagation();goNext();}} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 text-gray-800 w-9 h-9 rounded-full flex items-center justify-center shadow-md text-lg font-bold backdrop-blur-sm active:scale-90 transition-transform">›</button>
+            </>}
+            {/* 圓點指示器 */}
+            {imgCount > 1 && (
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+                {images.map((_,i) => <span key={i} className={`rounded-full transition-all duration-300 ${i===imgIdx ? 'bg-white w-4 h-2' : 'bg-white/50 w-2 h-2'}`} />)}
+              </div>
+            )}
+            {/* 縮圖列（超過1張顯示） */}
+            {imgCount > 1 && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 pt-6 pb-2 px-3">
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar justify-center">
+                  {images.map((url,i) => (
+                    <button key={i} onClick={e=>{e.stopPropagation();setImgIdx(i);}}
+                      className={`flex-shrink-0 w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${i===imgIdx?'border-white scale-110':'border-white/30'}`}>
+                      <img src={url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* 返回 & 購物車 */}
             <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
               <button onClick={() => navigate(-1)} className="bg-white/90 p-2.5 rounded-full shadow-lg backdrop-blur-sm">
                 <Icons.ArrowLeft className="w-5 h-5 text-gray-800" />
               </button>
-              {/* ✅ 購物車按鈕含角標 */}
               <button onClick={() => navigate('/cart')} className="bg-white/90 p-2.5 rounded-full shadow-lg backdrop-blur-sm relative">
                 <Icons.ShoppingCart className="w-5 h-5 text-gray-800" />
                 {cartCount > 0 && (
@@ -2478,7 +2590,7 @@
     // 頁面：管理員後台 (Bug Fixed)
     // =====================================================
     const AdminDashboard = () => {
-      const { user } = useAppContext();
+      const { user, allCategories, setAllCategories } = useAppContext();
       const { showAlert, showConfirm } = useDialog();
       const navigate = useNavigate();
       const [orders, setOrders] = useState([]);
@@ -2491,6 +2603,9 @@
       const [tab, setTab] = useState('dashboard');
       const [editProduct, setEditProduct] = useState(null);
       const [uploadingImg, setUploadingImg] = useState(false); // 圖片上傳中
+      const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+      const [newCategory, setNewCategory] = useState({ id:'', name:'', iconUrl:'' });
+      const [uploadingCatIcon, setUploadingCatIcon] = useState(false);
       // campaigns
       const [campaigns, setCampaigns] = useState([]);
       const [editCampaign, setEditCampaign] = useState(null);
@@ -2769,23 +2884,98 @@
                     <div><label className="text-xs text-gray-500 block mb-1">規格名稱</label><input value={editProduct.variantType||''} onChange={e=>setEditProduct({...editProduct,variantType:e.target.value})} className="w-full p-2 border rounded-lg" placeholder="尺寸" /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-xs text-gray-500 block mb-1">分類編號</label><input value={editProduct.categoryId||''} onChange={e=>setEditProduct({...editProduct,categoryId:e.target.value})} className="w-full p-2 border rounded-lg" /></div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">商品分類</label>
+                      <select value={editProduct.categoryId||''} onChange={e => {
+                          if (e.target.value === '__NEW__') { setShowAddCategoryModal(true); }
+                          else setEditProduct({...editProduct, categoryId: e.target.value});
+                        }} className="w-full p-2 border rounded-lg bg-white text-sm">
+                        <option value="">無分類</option>
+                        {allCategories.map(c => <option key={c.id} value={c.id}>{c.name}（{c.id}）</option>)}
+                        <option value="__NEW__">＋ 新增分類...</option>
+                      </select>
+                    </div>
                     <div><label className="text-xs text-gray-500 block mb-1">兌換點數 (0=不可兌換)</label><input type="number" value={editProduct.redeemPoints||0} onChange={e=>setEditProduct({...editProduct,redeemPoints:Number(e.target.value)})} className="w-full p-2 border rounded-lg" /></div>
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-2">優惠標籤</label>
-                    <button onClick={()=>setEditProduct({...editProduct,isOnSale:!editProduct.isOnSale})}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all ${editProduct.isOnSale?'border-red-400 bg-red-50 text-red-600':'border-gray-200 bg-gray-50 text-gray-400'}`}>
-                      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${editProduct.isOnSale?'border-red-500 bg-red-500':'border-gray-300'}`}>
-                        {editProduct.isOnSale && <span className="text-white text-xs font-black">✓</span>}
-                      </span>
-                      {editProduct.isOnSale ? '🏷️ 顯示 SALE 標籤' : '不顯示 SALE 標籤'}
-                    </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-2">優惠標籤</label>
+                      <button onClick={()=>setEditProduct({...editProduct,isOnSale:!editProduct.isOnSale})}
+                        className={`w-full flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all ${editProduct.isOnSale?'border-red-400 bg-red-50 text-red-600':'border-gray-200 bg-gray-50 text-gray-400'}`}>
+                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${editProduct.isOnSale?'border-red-500 bg-red-500':'border-gray-300'}`}>
+                          {editProduct.isOnSale && <span className="text-white text-xs font-black">✓</span>}
+                        </span>
+                        {editProduct.isOnSale ? '🏷️ SALE' : 'SALE 標籤'}
+                      </button>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-2">商品類型</label>
+                      <button onClick={()=>setEditProduct({...editProduct,isVirtual:!editProduct.isVirtual})}
+                        className={`w-full flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all ${editProduct.isVirtual?'border-purple-400 bg-purple-50 text-purple-600':'border-gray-200 bg-gray-50 text-gray-400'}`}>
+                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${editProduct.isVirtual?'border-purple-500 bg-purple-500':'border-gray-300'}`}>
+                          {editProduct.isVirtual && <span className="text-white text-xs font-black">✓</span>}
+                        </span>
+                        {editProduct.isVirtual ? '🔮 虛擬商品' : '實體商品'}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="p-4 flex gap-3 sticky bottom-0 bg-white border-t">
                   <button onClick={() => setEditProduct(null)} className="flex-1 py-3 border rounded-xl font-bold text-gray-500">取消</button>
                   <button onClick={handleSaveProduct} className="flex-1 py-3 bg-lime-600 text-white rounded-xl font-bold shadow-md">儲存</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 新增分類 Modal */}
+          {showAddCategoryModal && (
+            <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl">
+                <div className="p-4 border-b font-bold text-lg text-center">新增商品分類</div>
+                <div className="p-4 space-y-3">
+                  <div><label className="text-xs text-gray-500 block mb-1">分類編號 * （英數字，唯一值）</label>
+                    <input value={newCategory.id} onChange={e=>setNewCategory({...newCategory,id:e.target.value.trim()})} placeholder="例: cat_01" className="w-full p-2 border rounded-lg" />
+                  </div>
+                  <div><label className="text-xs text-gray-500 block mb-1">分類名稱 *</label>
+                    <input value={newCategory.name} onChange={e=>setNewCategory({...newCategory,name:e.target.value})} placeholder="例: 春季新品" className="w-full p-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">分類圖標（選填）</label>
+                    {newCategory.iconUrl && <img src={newCategory.iconUrl} className="w-12 h-12 rounded-xl object-cover mb-2 border" referrerPolicy="no-referrer" />}
+                    <label className={`w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed rounded-xl cursor-pointer ${uploadingCatIcon?'border-gray-200 bg-gray-50':'border-lime-300 bg-lime-50'}`}>
+                      <input type="file" accept="image/*" className="hidden" disabled={uploadingCatIcon} onChange={async e=>{
+                        const file = e.target.files?.[0]; if (!file) return;
+                        setUploadingCatIcon(true);
+                        try {
+                          const base64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+                          const result = await api.post('uploadProductImage',{adminId:user.lineId,fileName:file.name,mimeType:file.type,base64Data:base64});
+                          if (result?.url) setNewCategory(c=>({...c,iconUrl:result.url}));
+                          else showAlert('上傳失敗：'+(result?.error||''));
+                        } catch(err){ showAlert('上傳錯誤：'+err.message); }
+                        setUploadingCatIcon(false); e.target.value='';
+                      }} />
+                      {uploadingCatIcon ? <span className="text-gray-400 text-sm animate-pulse">上傳中...</span> : <><span className="text-xl">🖼️</span><span className="text-lime-700 font-bold text-sm">從相簿選擇圖標</span></>}
+                    </label>
+                    <input value={newCategory.iconUrl} onChange={e=>setNewCategory({...newCategory,iconUrl:e.target.value})} placeholder="或直接貼圖片網址" className="w-full p-2 border rounded-lg text-xs mt-2" />
+                  </div>
+                </div>
+                <div className="p-4 flex gap-3 border-t">
+                  <button onClick={()=>{setShowAddCategoryModal(false);setNewCategory({id:'',name:'',iconUrl:''}); }} className="flex-1 py-3 border rounded-xl font-bold text-gray-500">取消</button>
+                  <button onClick={async()=>{
+                    if (!newCategory.id||!newCategory.name){ showAlert('分類編號和名稱為必填'); return; }
+                    if (allCategories.find(c=>c.id===newCategory.id)){ showAlert('此分類編號已存在'); return; }
+                    try {
+                      const r = await api.post('saveCategory',{adminId:user.lineId,category:newCategory});
+                      if (r?.success){
+                        setAllCategories(prev=>[...prev,newCategory]);
+                        setEditProduct(p=>p?{...p,categoryId:newCategory.id}:p);
+                        setShowAddCategoryModal(false);
+                        setNewCategory({id:'',name:'',iconUrl:''});
+                        showAlert('✅ 分類已新增！');
+                      } else showAlert('新增失敗：'+(r?.error||''));
+                    } catch(e){ showAlert('新增失敗：'+e.message); }
+                  }} className="flex-1 py-3 bg-lime-600 text-white rounded-xl font-bold">新增</button>
                 </div>
               </div>
             </div>
@@ -3101,7 +3291,7 @@
                 {/* 商品管理 */}
                 {tab==='products' && (
                   <div className="space-y-4">
-                    <button onClick={() => setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',isOnSale:false })}
+                    <button onClick={()=>setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',isOnSale:false,isVirtual:false })}
                       className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-md flex items-center justify-center gap-2">
                       <Icons.Plus className="w-5 h-5" /> 新增商品
                     </button>
@@ -3371,6 +3561,7 @@
                       {key:'storeAddress',label:'門市地址',type:'text'},
                       {key:'storePhone',label:'門市電話',type:'text'},
                       {key:'marqueeText',label:'跑馬燈文字',type:'text'},
+                      {key:'carouselSeconds',label:'🖼️ 商品圖片輪播秒數（預設4秒）',type:'number'},
                     ].map(f => (
                       <div key={f.key}>
                         <label className="block text-sm font-bold text-gray-700 mb-1">{f.label}</label>
