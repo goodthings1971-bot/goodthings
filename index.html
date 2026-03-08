@@ -322,7 +322,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.06</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.07</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -1160,11 +1160,21 @@
             if (addrErr) { showAlert(addrErr); return; }
           }
         }
-        // ── 店取：送出前提示營業時間 ──────────────────────
+        // ── 宅配：提示付款時限 ────────────────────────────
+        if (!allVirtual && deliveryMethod === 'shipping') {
+          const hrs = settings?.shippingPayDeadlineHours || 2;
+          const ok = await showConfirm(
+            `⏰ 付款時限提醒\n\n宅配訂單請於 ${hrs} 小時內完成轉帳付款，逾時訂單將自動取消並恢復庫存。\n\n確認送出訂單？`,
+            '宅配確認'
+          );
+          if (!ok) return;
+        }
+        // ── 店取：提示取貨期限 ────────────────────────────
         if (!allVirtual && deliveryMethod === 'pickup') {
+          const days = settings?.pickupPayDeadlineDays || 7;
           const ptLine = pickupTime ? `\n📅 預約取貨：${pickupTime}` : '\n（未填預約時間，建議事先聯繫確認）';
           const ok = await showConfirm(
-            `🏪 店面取貨注意事項\n\n⏰ 營業時間\n  週二 ～ 週日\n  11:30 ～ 20:00\n  🚫 週一公休${ptLine}\n\n確認送出訂單？`,
+            `🏪 店面取貨注意事項\n\n⏰ 營業時間\n  週二 ～ 週日\n  11:30 ～ 20:00\n  🚫 週一公休${ptLine}\n\n📅 請於 ${days} 天內完成取貨付款，逾時訂單將自動取消。\n\n確認送出訂單？`,
             '確認取貨資訊'
           );
           if (!ok) return;
@@ -1208,7 +1218,12 @@
               if (item.isRedemption) return `  ${idx+1}. 【兌換】${item.name}${vt} x${item.quantity}`;
               return `  ${idx+1}. ${item.name}${vt} x${item.quantity}  NT$${(item.price * item.quantity).toLocaleString()}`;
             }).join('\n');
-            const transferNote = paymentMethod==='transfer' ? '\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！' : '';
+            const deadlineHrs = settings?.shippingPayDeadlineHours || 2;
+            const transferNote = paymentMethod==='transfer'
+              ? (deliveryMethod==='shipping'
+                ? `\n\n⏰ 請於 ${deadlineHrs} 小時內完成轉帳，逾時訂單自動取消！\n💳 完成後請將截圖傳給客服確認。`
+                : '\n\n💳 請完成轉帳後將截圖傳給客服，確認後即安排出貨！')
+              : '';
             const pickupNote = (deliveryMethod==='pickup' && pickupTime) ? `\n📅 預約取貨時間：${pickupTime}` : '';
             const msg = [`🛍️ 訂單確認通知`,`━━━━━━━━━━━━━━━`,`訂單編號：${orderId}`,'',`📦 商品明細：`,itemLines,'',`💰 費用明細：`,`  商品小計：NT$${cartTotal.toLocaleString()}`,`  運費：${shippingText}`,`  ─────────────`,`  總金額：NT$${total.toLocaleString()}`,'',`🚀 取貨方式：${deliveryLabel}`,`💳 付款方式：${paymentLabel}`,'',`👤 收件資訊：`,`  姓名：${formData.name||user.name}`,`  電話：${formData.phone||user.phone}`,`  地址：${addressLine}${pickupNote}`,`━━━━━━━━━━━━━━━`,`感謝您的購買！${transferNote}`].join('\n');
             await liff.sendMessages([{ type:'text', text: msg }]);
@@ -1241,7 +1256,10 @@
         }
       };
 
-      const TransferModal = () => (
+      const TransferModal = () => {
+        const isShipping = deliveryMethod === 'shipping';
+        const deadlineHrs = settings?.shippingPayDeadlineHours || 2;
+        return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
             <div className="bg-gradient-to-br from-lime-500 to-lime-600 p-6 text-center">
@@ -1250,6 +1268,12 @@
               <p className="text-lime-100 text-sm mt-1">訂單編號：{completedOrderId}</p>
             </div>
             <div className="p-5">
+              {isShipping && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-3">
+                  <p className="text-red-700 font-black text-sm mb-1">⏰ 請於 {deadlineHrs} 小時內完成付款</p>
+                  <p className="text-red-600 text-xs">逾時訂單將自動取消並恢復庫存，請務必在時限內轉帳！</p>
+                </div>
+              )}
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
                 <p className="text-amber-800 font-bold text-sm mb-1">📢 請完成轉帳後回傳截圖</p>
                 <p className="text-amber-700 text-xs">確認收款後即安排出貨，感謝您的耐心等候 🙏</p>
@@ -1283,7 +1307,8 @@
             </div>
           </div>
         </div>
-      );
+        );
+      };
 
       if (cart.length===0 && !showTransferModal) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
@@ -1669,9 +1694,23 @@
               const u = order.content?.user || {};
               const method = order.deliveryMethod || order.content?.deliveryMethod;
               const ptDisplay = order.content?.pickupTime || order.pickupTime || '';
+              const payDeadline = order.content?.payDeadline || order.payDeadline || '';
+              const trackingNumber = order.content?.trackingNumber || order.trackingNumber || '';
               const canCancel = order.status==='Pending';
               const canEdit = order.status==='Pending';
               const canEditPickup = method==='pickup' && order.status!=='Completed' && order.status!=='Cancelled';
+              // 計算付款截止倒數
+              let deadlineDisplay = null;
+              if (order.status==='Pending' && payDeadline) {
+                const diff = new Date(payDeadline) - new Date();
+                if (diff > 0) {
+                  const hrs = Math.floor(diff / 3600000);
+                  const mins = Math.floor((diff % 3600000) / 60000);
+                  deadlineDisplay = hrs > 0 ? `${hrs}小時${mins}分` : `${mins}分鐘`;
+                } else {
+                  deadlineDisplay = '已逾期';
+                }
+              }
               return (
                 <div key={order.orderId} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="p-4 border-b border-gray-50">
@@ -1710,6 +1749,20 @@
                       )}
                       {order.content?.pointsEarned > 0 && order.status==='Completed' && (
                         <div className="text-lime-600 font-bold">✅ 已獲得 {order.content.pointsEarned} 點數</div>
+                      )}
+                      {/* 付款截止提醒（宅配/店取 Pending） */}
+                      {deadlineDisplay && (method==='shipping' || method==='pickup') && (
+                        <div className={`flex items-center gap-1.5 mt-1 px-2.5 py-1.5 rounded-lg text-xs font-bold ${deadlineDisplay==='已逾期' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-orange-50 text-orange-600 border border-orange-100'}`}>
+                          ⏰ {method==='shipping'?'付款截止':'取貨截止'}：
+                          {deadlineDisplay==='已逾期' ? '已逾期，訂單將取消' : `剩餘 ${deadlineDisplay}`}
+                        </div>
+                      )}
+                      {/* 超商寄件編號 */}
+                      {trackingNumber && method==='cvs' && (
+                        <div className="flex items-center gap-2 mt-1 px-2.5 py-1.5 bg-blue-50 rounded-lg border border-blue-100">
+                          <span className="text-xs font-bold text-blue-700">📦 寄件編號：</span>
+                          <span className="text-xs font-mono text-blue-800 font-bold">{trackingNumber}</span>
+                        </div>
                       )}
                     </div>
                     {(canCancel || canEdit) && (
@@ -2593,7 +2646,6 @@
             {hasVariants && (
               <div className="mb-5 space-y-4">
                 {vGroups.map(grp => {
-                  // 計算每個選項庫存（多規格只在完整組合時才知道）
                   const isSingleGroup = vGroups.length === 1;
                   return (
                     <div key={grp.name}>
@@ -2601,20 +2653,46 @@
                       <div className="flex flex-wrap gap-2">
                         {grp.options.filter(o=>o).map(opt => {
                           const isSelected = selectedSpecs[grp.name] === opt;
-                          // 單規格：可直接顯示庫存
-                          const optStock = isSingleGroup ? (Number(vStocks[opt])||0) : null;
-                          const outOfStock = isSingleGroup && optStock <= 0;
+                          // 計算此選項是否售完
+                          let outOfStock = false;
+                          let optStock = null;
+                          if (isSingleGroup) {
+                            optStock = Number(vStocks[opt]) || 0;
+                            outOfStock = optStock <= 0;
+                          } else {
+                            // 多規格：假設已選其他維度的情況下，看這個選項的所有組合是否全部售完
+                            const testCombo = {...selectedSpecs, [grp.name]: opt};
+                            const otherGroups = vGroups.filter(g => g.name !== grp.name);
+                            if (otherGroups.every(g => testCombo[g.name])) {
+                              // 其他維度都已選：直接查此組合庫存
+                              const key = vGroups.map(g => testCombo[g.name] || '').join('|');
+                              const s = Number(vStocks[key]) || 0;
+                              outOfStock = s <= 0;
+                              optStock = s;
+                            } else {
+                              // 其他維度未選：掃描此維度選項涉及的所有組合
+                              const allCombosForOpt = Object.keys(vStocks).filter(k => {
+                                const parts = k.split('|');
+                                const myIdx = vGroups.findIndex(g => g.name === grp.name);
+                                return myIdx >= 0 && parts[myIdx] === opt;
+                              });
+                              outOfStock = allCombosForOpt.length > 0 && allCombosForOpt.every(k => (Number(vStocks[k]) || 0) <= 0);
+                            }
+                          }
                           return (
                             <button key={opt}
+                              disabled={outOfStock}
                               onClick={() => !outOfStock && setSelectedSpecs(s => ({...s, [grp.name]: opt}))}
-                              className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-                                outOfStock ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
-                                : isSelected ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
-                                : 'border-gray-200 text-gray-600'
+                              className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all relative ${
+                                outOfStock
+                                  ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'
+                                  : isSelected
+                                  ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
+                                  : 'border-gray-200 text-gray-600 active:scale-95'
                               }`}>
+                              {outOfStock && <span className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="w-full h-px bg-gray-300 absolute rotate-[135deg]"></span></span>}
                               {opt}
-                              {isSingleGroup && !outOfStock && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
-                              {isSingleGroup && outOfStock && <span className="ml-1.5 text-xs text-gray-300">(售完)</span>}
+                              {isSingleGroup && !outOfStock && optStock !== null && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
                             </button>
                           );
                         })}
@@ -2980,15 +3058,30 @@
           if (!await showConfirm(`確定完成訂單 ${orderId}？\n${pts>0?`將發放 ${pts} 點給顧客`:''}`, '完成訂單')) return;
         }
 
+        // CVS 出貨時詢問寄件編號
+        if (newStatus === 'Shipped' && method === 'cvs') {
+          const trackingNum = window.prompt(`請輸入超商寄件編號（選填，可稍後補填）：`);
+          if (trackingNum && trackingNum.trim()) {
+            try {
+              await api.post('updateOrderTracking', { adminId:user.lineId, orderId, trackingNumber: trackingNum.trim() });
+              setOrders(prev => prev.map(o => o.orderId===orderId
+                ? {...o, content:{...o.content, trackingNumber: trackingNum.trim()}}
+                : o
+              ));
+            } catch(e) {}
+          }
+        }
+
         try {
           const r = await api.post('updateOrderStatus', { adminId:user.lineId, orderId, status:newStatus, notify:false });
           if (r?.success) {
             setOrders(prev => prev.map(o => o.orderId===orderId ? {...o, status:newStatus} : o));
-            // 決定通知訊息
             let notifyMsg = '';
             if (newStatus === 'Shipped') {
               notifyMsg = method === 'pickup'
                 ? `🏪 取貨通知\n\n您的訂單 ${orderId} 已備妥！\n\n請儘快到店完成取貨 😊`
+                : method === 'cvs'
+                ? `🏬 超商取貨通知\n\n您的訂單 ${orderId} 已出貨！\n\n請耐心等候超商簡訊通知 😊`
                 : `🚚 出貨通知\n\n您的訂單 ${orderId} 已寄送！\n\n請耐心等候收件，謝謝 😊`;
             } else if (newStatus === 'Completed') {
               notifyMsg = `✅ 訂單完成通知\n\n訂單 ${orderId} 已完成！${pts > 0 ? `\n\n恭喜獲得 ${pts} 點數！` : ''}\n\n感謝您的購買 🎉`;
@@ -3442,7 +3535,7 @@
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
-              <span className="ml-auto text-lime-200 text-xs">V2.06</span>
+              <span className="ml-auto text-lime-200 text-xs">V2.07</span>
             </div>
             {/* 12格功能選單 */}
             <div className="grid grid-cols-4 gap-1.5">
@@ -3624,6 +3717,35 @@
                             {order.status==='Shipped' && method==='pickup' && <span className="text-orange-600 font-bold text-xs ml-1">請儘快到店完成取貨</span>}
                           </div>
                           {order.content?.user?.address && method!=='pickup' && <div className="text-xs text-gray-400">地址：{order.content.user.address}</div>}
+                          {/* 超商寄件編號 */}
+                          {method==='cvs' && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {(order.content?.trackingNumber || order.trackingNumber) ? (
+                                <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2 py-1 rounded-lg border border-blue-100">
+                                  📦 寄件編號：{order.content?.trackingNumber || order.trackingNumber}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400">尚未填寫寄件編號</span>
+                              )}
+                              {(order.status==='Shipped' || order.status==='Pending') && (
+                                <button onClick={async () => {
+                                  const cur = order.content?.trackingNumber || order.trackingNumber || '';
+                                  const num = window.prompt('輸入超商寄件編號：', cur);
+                                  if (num === null) return;
+                                  const r = await api.post('updateOrderTracking', { adminId:user.lineId, orderId:order.orderId, trackingNumber:num.trim() });
+                                  if (r?.success) {
+                                    setOrders(prev => prev.map(o => o.orderId===order.orderId
+                                      ? {...o, content:{...o.content, trackingNumber:num.trim()}}
+                                      : o
+                                    ));
+                                    showAlert('✅ 寄件編號已更新');
+                                  } else showAlert('更新失敗');
+                                }} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-lg font-bold border border-blue-200 active:scale-95">
+                                  {(order.content?.trackingNumber || order.trackingNumber) ? '修改' : '填入編號'}
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           {order.status==='Pending' && <button onClick={() => updateStatus(order.orderId,'Shipped')} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform">確認出貨</button>}
@@ -3942,51 +4064,6 @@
                 {/* ⚙️ 設定 */}
                 {tab==='settings' && (
                   <div className="space-y-4">
-                  {/* LINE 推播設定 */}
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-500 to-lime-500 px-4 py-3 flex items-center gap-2">
-                      <span className="text-white text-lg">📲</span>
-                      <span className="font-black text-white text-sm">LINE Messaging API 設定</span>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 leading-relaxed">
-                        <div className="font-bold mb-1">如何取得 Channel Access Token？</div>
-                        1. 進入 <a href="https://developers.line.biz/console/" target="_blank" className="underline text-blue-600">LINE Developers Console</a><br/>
-                        2. 選擇你的 Messaging API Channel<br/>
-                        3. 進入「Messaging API」分頁 → Channel access token → <strong>Issue</strong>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Channel Access Token（長效型）</label>
-                        <textarea
-                          value={adminSettings.lineChannelToken||''}
-                          onChange={e=>setAdminSettings({...adminSettings,lineChannelToken:e.target.value.trim()})}
-                          placeholder="貼上你的 Channel Access Token..."
-                          className="w-full p-2.5 border rounded-xl text-xs font-mono bg-gray-50 min-h-[80px] resize-none"
-                        />
-                        <div className="text-xs text-gray-400 mt-1">若設定此值，會覆蓋程式碼中的硬編碼 Token</div>
-                      </div>
-                      <button onClick={async () => {
-                        if (!adminSettings.lineChannelToken) { showAlert('請先填入 Token'); return; }
-                        try {
-                          // 先儲存 Token
-                          await api.post('updateSettings', { adminId:user.lineId, settings:{ lineChannelToken: adminSettings.lineChannelToken } });
-                          // 呼叫除錯 API 取得詳細診斷
-                          const r = await api.post('debugLinePush', { adminId:user.lineId, toUserId:user.lineId });
-                          if (r?.ok) {
-                            showAlert('✅ 推播測試成功！\n請查看您的 LINE 訊息。\n\nToken 長度：' + (r.tokenLen||'?') + ' 字元');
-                          } else {
-                            const hint = r?.hint || r?.reason || r?.apiMessage || '未知錯誤';
-                            const tokenInfo = r?.tokenLen !== undefined ? `\nToken 長度：${r.tokenLen} 字元` : '';
-                            const httpInfo = r?.httpCode ? `\nHTTP：${r.httpCode}` : '';
-                            showAlert('❌ 推播失敗\n\n原因：' + hint + tokenInfo + httpInfo + '\n\n請至「廣播」分頁點「執行 LINE 推播除錯」取得更多資訊');
-                          }
-                        } catch(e) { showAlert('測試失敗：' + e.message); }
-                      }} className="w-full py-3 bg-[#06C755] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">
-                        📲 儲存並測試推播（推播給自己）
-                      </button>
-                    </div>
-                  </div>
-
                   {/* 商店基本設定 */}
                   <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                     <h3 className="font-bold text-lg">🏪 商店設定</h3>
@@ -4160,6 +4237,75 @@
                     }} className="w-full py-2.5 border-2 border-gray-300 text-gray-600 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-60">
                       ⚙️ 初始化分頁保護（首次設定）
                     </button>
+                  </div>
+                  </div>
+
+                  {/* ⏰ 付款時限設定 */}
+                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                    <h3 className="font-bold text-lg">⏰ 付款時限設定</h3>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
+                      宅配訂單超過時限未付款將自動取消並恢復庫存。超商取貨無時限。
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">🚚 宅配付款時限（小時）</label>
+                        <input type="number" min="1" value={adminSettings.shippingPayDeadlineHours||2}
+                          onChange={e2=>setAdminSettings({...adminSettings,shippingPayDeadlineHours:Number(e2.target.value)})}
+                          className="w-full p-2 border rounded-lg" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">🏪 店取付款時限（天）</label>
+                        <input type="number" min="1" value={adminSettings.pickupPayDeadlineDays||7}
+                          onChange={e2=>setAdminSettings({...adminSettings,pickupPayDeadlineDays:Number(e2.target.value)})}
+                          className="w-full p-2 border rounded-lg" />
+                      </div>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                      ⚠️ 自動取消需在 GAS 後台設定定時觸發器執行 <code className="bg-amber-200 px-1 rounded">autoExpireOrders()</code>，建議每30分鐘執行一次。
+                    </div>
+                  </div>
+
+                  {/* 📲 LINE Messaging API 設定（最下方） */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-gradient-to-r from-green-500 to-lime-500 px-4 py-3 flex items-center gap-2">
+                      <span className="text-white text-lg">📲</span>
+                      <span className="font-black text-white text-sm">LINE Messaging API 設定</span>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 leading-relaxed">
+                        <div className="font-bold mb-1">如何取得 Channel Access Token？</div>
+                        1. 進入 <a href="https://developers.line.biz/console/" target="_blank" className="underline text-blue-600">LINE Developers Console</a><br/>
+                        2. 選擇你的 Messaging API Channel<br/>
+                        3. 進入「Messaging API」分頁 → Channel access token → <strong>Issue</strong>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Channel Access Token（長效型）</label>
+                        <textarea
+                          value={adminSettings.lineChannelToken||''}
+                          onChange={e=>setAdminSettings({...adminSettings,lineChannelToken:e.target.value.trim()})}
+                          placeholder="貼上你的 Channel Access Token..."
+                          className="w-full p-2.5 border rounded-xl text-xs font-mono bg-gray-50 min-h-[80px] resize-none"
+                        />
+                        <div className="text-xs text-gray-400 mt-1">若設定此值，會覆蓋程式碼中的硬編碼 Token</div>
+                      </div>
+                      <button onClick={async () => {
+                        if (!adminSettings.lineChannelToken) { showAlert('請先填入 Token'); return; }
+                        try {
+                          await api.post('updateSettings', { adminId:user.lineId, settings:{ lineChannelToken: adminSettings.lineChannelToken } });
+                          const r = await api.post('debugLinePush', { adminId:user.lineId, toUserId:user.lineId });
+                          if (r?.ok) {
+                            showAlert('✅ 推播測試成功！\n請查看您的 LINE 訊息。\n\nToken 長度：' + (r.tokenLen||'?') + ' 字元');
+                          } else {
+                            const hint = r?.hint || r?.reason || r?.apiMessage || '未知錯誤';
+                            const tokenInfo = r?.tokenLen !== undefined ? `\nToken 長度：${r.tokenLen} 字元` : '';
+                            const httpInfo = r?.httpCode ? `\nHTTP：${r.httpCode}` : '';
+                            showAlert('❌ 推播失敗\n\n原因：' + hint + tokenInfo + httpInfo + '\n\n請至「廣播」分頁點「執行 LINE 推播除錯」取得更多資訊');
+                          }
+                        } catch(e) { showAlert('測試失敗：' + e.message); }
+                      }} className="w-full py-3 bg-[#06C755] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">
+                        📲 儲存並測試推播（推播給自己）
+                      </button>
+                    </div>
                   </div>
                   </div>
                 )}
