@@ -2690,7 +2690,7 @@
                                   ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
                                   : 'border-gray-200 text-gray-600 active:scale-95'
                               }`}>
-                              {outOfStock && <span className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="w-full h-px bg-gray-300 absolute rotate-[135deg]"></span></span>}
+                              {outOfStock && <span className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="w-full h-px bg-gray-300 absolute" style={{transform:'rotate(135deg)'}}></span></span>}
                               {opt}
                               {isSingleGroup && !outOfStock && optStock !== null && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
                             </button>
@@ -4779,12 +4779,9 @@
     // App Root
     // =====================================================
     const App = () => {
-  // ✅ 電腦版偵測:不在 render 期間呼叫 liff.isInClient()，避免 cross-origin Script error
+      // ✅ 電腦版偵測：非手機且非 LIFF 環境顯示提示頁
       const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-      const isLiffClient = window.location.href.includes('liff.state') ||
-                       window.location.search.includes('liff') ||
-                       document.referrer.includes('line.me') ||
-                       document.referrer.includes('liff');
+      const isLiffClient = typeof liff !== 'undefined' && (() => { try { return liff.isInClient(); } catch(e) { return false; } })();
       if (!isMobile && !isLiffClient) {
         return (
           <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#4ade80 0%,#22c55e 50%,#16a34a 100%)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'system-ui,sans-serif',padding:'24px'}}>
