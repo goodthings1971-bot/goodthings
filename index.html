@@ -2493,7 +2493,7 @@
       );
 
       const totalStock = getTotalStock(product);
-      const hasVariants = product.variants && product.variants.length > 0;
+      // hasVariants 已在上方宣告（early return 之前）
 
       // ── 圖片輪播計算（hooks 已在上方宣告）──
       const images = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
@@ -3249,7 +3249,7 @@
                               return (
                                 <div key={key} className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1">
                                   <span className="text-xs text-gray-600 flex-1 truncate">{combo.join(' / ')}</span>
-                                  <input type="number" min="0" value={stocks[key]??0}
+                                  <input type="number" min="0" value={stocks[key] !== undefined ? stocks[key] : 0}
                                     onChange={ev => setEditProduct(ep=>({...ep,variantStocks:{...(ep.variantStocks||{}),[key]:Number(ev.target.value)}}))}
                                     className="w-12 border rounded px-1 py-0.5 text-sm text-center bg-white" />
                                 </div>
