@@ -322,7 +322,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.05</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.06</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -418,7 +418,7 @@
                   </div>
                 : <div className="flex items-center justify-center h-full text-4xl opacity-20">🛍️</div>
             }
-            {product.isOnSale && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">SALE</div>}
+            {product.isOnSale && <div className="absolute bottom-2 right-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-md tracking-wide">SALE</div>}
             {totalStock <= 0 && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">售完</span></div>}
             {totalStock > 0 && <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm">庫存: {totalStock}</div>}
           </div>
@@ -2374,7 +2374,7 @@
       const [product, setProduct] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
-      const [selectedVariant, setSelectedVariant] = useState(null);
+      const [selectedSpecs, setSelectedSpecs] = useState({}); // { 顏色:'紅', 尺寸:'S' }
       const [addedAnim, setAddedAnim] = useState(false);
 
       // ── 圖片輪播 hooks（必須在所有 early return 之前）──
@@ -2382,30 +2382,42 @@
       const [lightbox, setLightbox] = useState(false);
       const touchStartX = React.useRef(null);
 
-      // 購物車總數（用於角標）
+      // 購物車總數
       const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
 
+      // 解析多規格資料
+      const parseVariantGroups = (p) => {
+        if (!p) return [];
+        if (p.variantGroupsJson) { try { return JSON.parse(p.variantGroupsJson); } catch(e) {} }
+        if (p.variants && p.variants.length) return [{ name: p.variantType || '規格', options: p.variants }];
+        return [];
+      };
+      const parseVariantStocks = (p) => {
+        if (!p) return {};
+        if (p.variantStocksJson) { try { return JSON.parse(p.variantStocksJson); } catch(e) {} }
+        if (p.variants && p.variants.length) {
+          const parts = String(p.stock||'').split(',');
+          const m = {};
+          p.variants.forEach((v,i) => { m[v] = Number(parts[i])||0; });
+          return m;
+        }
+        return {};
+      };
+
       useEffect(() => {
-        // ✅ 優化：優先從 AppContext 快取讀取，免去重複 API 呼叫
         const tryFromCache = () => {
           if (allProducts && allProducts.length > 0) {
             const found = allProducts.find(x => String(x.id) === String(id));
-            if (found) {
-              setProduct(found);
-              if (found.variants?.[0]) setSelectedVariant(found.variants[0]);
-              setLoading(false);
-              return true;
-            }
+            if (found) { setProduct(found); setSelectedSpecs({}); setLoading(false); return true; }
           }
           return false;
         };
-        if (tryFromCache()) return; // 快取命中，立即顯示
-        // 快取未命中才呼叫 API
+        if (tryFromCache()) return;
         setLoading(true);
         api.fetchProducts().then(p => {
           if (!p) { setError('無法載入商品資料'); setLoading(false); return; }
           const found = p.find(x => String(x.id) === String(id));
-          if (found) { setProduct(found); if (found.variants?.[0]) setSelectedVariant(found.variants[0]); }
+          if (found) { setProduct(found); setSelectedSpecs({}); }
           else setError('找不到此商品');
           setLoading(false);
         }).catch(() => { setError('發生錯誤'); setLoading(false); });
@@ -2421,37 +2433,34 @@
         return () => clearInterval(t);
       }, [product, settings]);
 
-      // ✅ 解析各規格庫存：格式 "3,5" 對應 variants [X, XL]
-      const getVariantStock = (product, variantName) => {
-        if (!product) return 0;
-        if (!product.variants || product.variants.length === 0) return Number(product.stock) || 0;
-        const stockStr = String(product.stock || '');
-        const stockParts = stockStr.split(',').map(s => Number(s.trim()) || 0);
-        const variantIndex = product.variants.indexOf(variantName);
-        if (variantIndex >= 0 && variantIndex < stockParts.length) return stockParts[variantIndex];
-        // 若庫存格式不對，回傳總庫存
-        return stockParts.reduce((a, b) => a + b, 0);
-      };
-
-      // 顯示總庫存（所有規格加總）
+      // 顯示總庫存
       const getTotalStock = (product) => {
         if (!product) return 0;
-        const stockStr = String(product.stock || '');
-        return stockStr.split(',').map(s => Number(s.trim()) || 0).reduce((a, b) => a + b, 0);
+        const vg = parseVariantGroups(product);
+        if (vg.length) {
+          const vs = parseVariantStocks(product);
+          return Object.values(vs).reduce((a,b) => a + Number(b||0), 0);
+        }
+        return Number(product.stock) || 0;
       };
 
-      const selectedStock = product ? getVariantStock(product, selectedVariant) : 0;
+      const vGroups = product ? parseVariantGroups(product) : [];
+      const vStocks = product ? parseVariantStocks(product) : {};
+      const hasVariants = vGroups.length > 0;
+
+      // 目前選擇是否完整
+      const comboComplete = vGroups.every(g => selectedSpecs[g.name]);
+      // 目前組合 key 和庫存
+      const comboKey = vGroups.map(g => selectedSpecs[g.name]||'').join('|');
+      const comboStock = comboComplete ? (Number(vStocks[comboKey]) || 0) : null;
+      // 購物車顯示標籤
+      const comboLabel = comboComplete ? vGroups.map(g => selectedSpecs[g.name]).join(' / ') : null;
 
       const handleAddToCart = () => {
-        if (product.variants && product.variants.length > 0 && !selectedVariant) {
-          showAlert('請先選擇規格');
-          return;
-        }
-        if (selectedStock <= 0) {
-          showAlert('此規格已售完');
-          return;
-        }
-        addToCart(product, 1, selectedVariant);
+        if (hasVariants && !comboComplete) { showAlert('請選擇所有規格'); return; }
+        if (hasVariants && comboStock <= 0) { showAlert('此規格已售完'); return; }
+        if (!hasVariants && getTotalStock(product) <= 0) { showAlert('商品已售完'); return; }
+        addToCart(product, 1, comboLabel || null);
         setAddedAnim(true);
         setTimeout(() => setAddedAnim(false), 600);
         showAlert('✅ 已加入購物車！');
@@ -2561,7 +2570,7 @@
               </button>
             </div>
             {product.originalPrice > product.price && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">SALE</div>
+              <div className="absolute bottom-4 right-4 bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-xl shadow-lg tracking-wide">SALE</div>
             )}
           </div>
 
@@ -2580,33 +2589,46 @@
               )}
             </div>
 
-            {/* 規格選擇（含各規格庫存） */}
+            {/* 規格選擇（支援多組規格） */}
             {hasVariants && (
-              <div className="mb-5">
-                <h3 className="font-bold text-gray-800 mb-2 text-sm">{product.variantType || '規格'}</h3>
-                <div className="flex flex-wrap gap-2">
-                  {product.variants.map(v => {
-                    const vStock = getVariantStock(product, v);
-                    const isSelected = selectedVariant === v;
-                    const outOfStock = vStock <= 0;
-                    return (
-                      <button key={v} onClick={() => !outOfStock && setSelectedVariant(v)}
-                        className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all relative ${
-                          outOfStock
-                            ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
-                            : isSelected
-                            ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
-                            : 'border-gray-200 text-gray-600 hover:border-lime-300'
-                        }`}>
-                        {v}
-                        {!outOfStock && <span className={`ml-1.5 text-xs ${isSelected ? 'text-lime-500' : 'text-gray-400'}`}>({vStock})</span>}
-                        {outOfStock && <span className="ml-1.5 text-xs text-gray-300">(售完)</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-                {selectedVariant && selectedStock > 0 && (
-                  <div className="mt-2 text-xs text-gray-400">已選: {selectedVariant} · 剩餘 {selectedStock} 件</div>
+              <div className="mb-5 space-y-4">
+                {vGroups.map(grp => {
+                  // 計算每個選項庫存（多規格只在完整組合時才知道）
+                  const isSingleGroup = vGroups.length === 1;
+                  return (
+                    <div key={grp.name}>
+                      <h3 className="font-bold text-gray-800 mb-2 text-sm">{grp.name}</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {grp.options.filter(o=>o).map(opt => {
+                          const isSelected = selectedSpecs[grp.name] === opt;
+                          // 單規格：可直接顯示庫存
+                          const optStock = isSingleGroup ? (Number(vStocks[opt])||0) : null;
+                          const outOfStock = isSingleGroup && optStock <= 0;
+                          return (
+                            <button key={opt}
+                              onClick={() => !outOfStock && setSelectedSpecs(s => ({...s, [grp.name]: opt}))}
+                              className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                                outOfStock ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through'
+                                : isSelected ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
+                                : 'border-gray-200 text-gray-600'
+                              }`}>
+                              {opt}
+                              {isSingleGroup && !outOfStock && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
+                              {isSingleGroup && outOfStock && <span className="ml-1.5 text-xs text-gray-300">(售完)</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* 組合庫存提示 */}
+                {comboComplete && (
+                  <div className={`text-xs font-bold px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 ${comboStock > 0 ? 'bg-lime-50 text-lime-600 border border-lime-200' : 'bg-red-50 text-red-500 border border-red-100'}`}>
+                    <span>已選：{comboLabel}</span>
+                    <span>·</span>
+                    <span>{comboStock > 0 ? `剩餘 ${comboStock} 件` : '此組合已售完'}</span>
+                  </div>
                 )}
               </div>
             )}
@@ -3003,7 +3025,27 @@
         if (savingProduct) return;
         setSavingProduct(true);
         try {
-          const r = await api.post('updateProduct', { adminId:user.lineId, product:editProduct });
+          let p = {...editProduct};
+          const vg = (p.variantGroups||[]).filter(g=>g.name&&g.options.some(o=>o));
+          if (vg.length) {
+            // 笛卡爾積組合
+            const combos = vg.reduce((acc,grp) => {
+              const opts=grp.options.filter(o=>o);
+              return acc.length ? acc.flatMap(prev=>opts.map(o=>[...prev,o])) : opts.map(o=>[o]);
+            }, []);
+            const stocks = p.variantStocks || {};
+            p.variants = combos.map(c=>c.join('|'));
+            p.stock = combos.map(c=>String(stocks[c.join('|')]||0)).join(',');
+            p.variantType = vg.map(g=>g.name).join('×');
+            p.variantGroupsJson = JSON.stringify(vg);
+            p.variantStocksJson = JSON.stringify(stocks);
+          } else {
+            p.variantGroupsJson = '';
+            p.variantStocksJson = '';
+            p.variants = [];
+            p.variantType = '';
+          }
+          const r = await api.post('updateProduct', { adminId:user.lineId, product:p });
           if (r?.success) { showAlert('✅ 商品已儲存'); setEditProduct(null); fetchTabData('products'); }
           else showAlert('儲存失敗：' + (r?.error||''));
         } catch(e) { showAlert('儲存失敗'); }
@@ -3152,9 +3194,71 @@
                     </div>
                   </div>
                   <div><label className="text-xs text-gray-500 block mb-1">影片連結 (YouTube / Facebook)</label><input value={editProduct.videoUrl||''} onChange={e=>setEditProduct({...editProduct,videoUrl:e.target.value})} className="w-full p-2 border rounded-lg" placeholder="https://youtu.be/..." /></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-xs text-gray-500 block mb-1">規格選項 (逗號分隔)</label><input value={Array.isArray(editProduct.variants)?editProduct.variants.join(','):(editProduct.variants||'')} onChange={e=>setEditProduct({...editProduct,variants:e.target.value.split(',').map(s=>s.trim()).filter(s=>s)})} className="w-full p-2 border rounded-lg" placeholder="S,M,L,XL" /></div>
-                    <div><label className="text-xs text-gray-500 block mb-1">規格名稱</label><input value={editProduct.variantType||''} onChange={e=>setEditProduct({...editProduct,variantType:e.target.value})} className="w-full p-2 border rounded-lg" placeholder="尺寸" /></div>
+                  {/* 多規格設定 */}
+                  <div className="border-2 border-lime-200 rounded-xl p-3 bg-lime-50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-lime-800">📐 規格設定（可新增多組）</label>
+                      <button onClick={() => setEditProduct(ep => ({...ep, variantGroups:[...(ep.variantGroups||[]),{name:'',options:['']}]}))}
+                        className="text-xs bg-lime-600 text-white px-2.5 py-1 rounded-lg font-bold active:scale-95">＋ 加規格</button>
+                    </div>
+                    {(!editProduct.variantGroups || editProduct.variantGroups.length === 0) ? (
+                      <p className="text-xs text-gray-400">尚未設定規格，商品共用一個庫存。點「＋ 加規格」可新增（如顏色、尺寸）。</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {editProduct.variantGroups.map((grp, gi) => (
+                          <div key={gi} className="bg-white rounded-xl p-2.5 border border-lime-100 space-y-2">
+                            <div className="flex gap-2 items-center">
+                              <input value={grp.name}
+                                onChange={ev => { const gs=[...editProduct.variantGroups]; gs[gi]={...gs[gi],name:ev.target.value}; setEditProduct(ep=>({...ep,variantGroups:gs})); }}
+                                placeholder="規格名稱，例：顏色" className="flex-1 p-1.5 border rounded-lg text-sm font-bold" />
+                              <button onClick={() => { const gs=editProduct.variantGroups.filter((_,i)=>i!==gi); setEditProduct(ep=>({...ep,variantGroups:gs})); }}
+                                className="text-red-400 font-bold text-lg w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50">✕</button>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              {grp.options.map((opt, oi) => (
+                                <div key={oi} className="flex items-center gap-0.5">
+                                  <input value={opt}
+                                    onChange={ev => { const gs=[...editProduct.variantGroups]; const opts=[...gs[gi].options]; opts[oi]=ev.target.value; gs[gi]={...gs[gi],options:opts}; setEditProduct(ep=>({...ep,variantGroups:gs})); }}
+                                    className="border rounded-lg px-2 py-1 text-sm text-center w-14" placeholder="選項" />
+                                  <button onClick={() => { const gs=[...editProduct.variantGroups]; const opts=gs[gi].options.filter((_,i)=>i!==oi); gs[gi]={...gs[gi],options:opts.length?opts:['']};setEditProduct(ep=>({...ep,variantGroups:gs})); }}
+                                    className="text-gray-300 text-xs w-4">✕</button>
+                                </div>
+                              ))}
+                              <button onClick={() => { const gs=[...editProduct.variantGroups]; gs[gi]={...gs[gi],options:[...gs[gi].options,'']}; setEditProduct(ep=>({...ep,variantGroups:gs})); }}
+                                className="text-xs border border-dashed border-lime-400 text-lime-600 px-2 py-1 rounded-lg">＋</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* 規格組合庫存 */}
+                    {editProduct.variantGroups && editProduct.variantGroups.length > 0 && (() => {
+                      const validGrps = editProduct.variantGroups.filter(g=>g.name&&g.options.some(o=>o));
+                      if (!validGrps.length) return null;
+                      const combos = validGrps.reduce((acc,grp) => {
+                        const opts=grp.options.filter(o=>o);
+                        return acc.length ? acc.flatMap(prev=>opts.map(o=>[...prev,o])) : opts.map(o=>[o]);
+                      }, []);
+                      const stocks = editProduct.variantStocks || {};
+                      return (
+                        <div className="bg-white rounded-xl border border-lime-100 p-2.5">
+                          <div className="text-xs font-bold text-gray-500 mb-2">各規格組合庫存（共 {combos.length} 組）</div>
+                          <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+                            {combos.map(combo => {
+                              const key=combo.join('|');
+                              return (
+                                <div key={key} className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1">
+                                  <span className="text-xs text-gray-600 flex-1 truncate">{combo.join(' / ')}</span>
+                                  <input type="number" min="0" value={stocks[key]??0}
+                                    onChange={ev => setEditProduct(ep=>({...ep,variantStocks:{...(ep.variantStocks||{}),[key]:Number(ev.target.value)}}))}
+                                    className="w-12 border rounded px-1 py-0.5 text-sm text-center bg-white" />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -3338,7 +3442,7 @@
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
-              <span className="ml-auto text-lime-200 text-xs">V2.05</span>
+              <span className="ml-auto text-lime-200 text-xs">V2.06</span>
             </div>
             {/* 12格功能選單 */}
             <div className="grid grid-cols-4 gap-1.5">
@@ -3615,7 +3719,7 @@
                 {/* 商品管理 */}
                 {tab==='products' && (
                   <div className="space-y-4">
-                    <button onClick={()=>setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',isOnSale:false,isVirtual:false })}
+                    <button onClick={()=>setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',brandCategoryId:'',isOnSale:false,isVirtual:false,variantGroups:[],variantStocks:{} })}
                       className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-md flex items-center justify-center gap-2">
                       <Icons.Plus className="w-5 h-5" /> 新增商品
                     </button>
@@ -3628,7 +3732,19 @@
                           <div className="text-xs text-gray-400">庫存: {p.stock}</div>
                         </div>
                         <div className="flex flex-col gap-2">
-                          <button onClick={() => setEditProduct({...p})} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
+                          <button onClick={() => {
+                            let ep = {...p, variantGroups:[], variantStocks:{}};
+                            if (p.variantGroupsJson) { try { ep.variantGroups=JSON.parse(p.variantGroupsJson); } catch(e){} }
+                            else if (p.variants && p.variants.length) {
+                              ep.variantGroups = [{name:p.variantType||'規格', options:p.variants}];
+                              const parts=String(p.stock||'').split(',');
+                              const m={};
+                              p.variants.forEach((v,i)=>{m[v]=Number(parts[i])||0;});
+                              ep.variantStocks=m;
+                            }
+                            if (p.variantStocksJson) { try { ep.variantStocks=JSON.parse(p.variantStocksJson); } catch(e){} }
+                            setEditProduct(ep);
+                          }} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
                           <button onClick={() => handleDeleteProduct(p.id)} className="p-2 bg-red-50 text-red-500 rounded-lg"><Icons.Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
@@ -3908,11 +4024,6 @@
                       </div>
                       <div className="text-xs text-gray-400 mt-1">影響會員中心快速功能、優惠券連結等文字大小</div>
                     </div>
-                      <div key={f.key}>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">{f.label}</label>
-                        <input type={f.type} value={adminSettings[f.key]||''} onChange={e=>setAdminSettings({...adminSettings,[f.key]:f.type==='number'?Number(e.target.value):e.target.value})} className="w-full p-2 border rounded-lg" />
-                      </div>
-                    ))}
                     <div className="border-t pt-4">
                       <h4 className="font-bold text-base mb-3">🎰 每日好運設定</h4>
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 mb-3">
