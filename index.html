@@ -34,12 +34,21 @@
     .product-desc blockquote { border-left:3px solid #a3e635; padding-left:0.8em; color:#6b7280; margin:0.4em 0; }
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     body { -webkit-tap-highlight-color: transparent; }
+    :root { --app-font-scale: 1; }
+    .app-scalable { font-size: calc(1em * var(--app-font-scale)); }
+    /* 按鈕點擊反饋 */
+    .btn-action { position:relative; overflow:hidden; transition: opacity 0.15s, transform 0.1s; }
+    .btn-action:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+    .btn-action.loading { opacity: 0.7; }
+    .btn-action:active:not(:disabled) { transform: scale(0.97); }
     @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
     .animate-marquee { animation: marquee 20s linear infinite; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .animate-fade-in { animation: fadeIn 0.2s ease-out; }
     @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .animate-scale-in { animation: scaleIn 0.2s ease-out; }
+    @keyframes checkmark { 0% { transform: scale(0); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
+    .animate-check { animation: checkmark 0.3s ease-out; }
   </style>
 </head>
 <body class="bg-yellow-50">
@@ -257,7 +266,12 @@
               try {
                 const [s, p, c] = await Promise.all([api.fetchSettings(), api.fetchProducts(), api.fetchCategories()]);
                 setLoadProgress(p2 => Math.max(p2, 85));
-                if (s) setSettings(s);
+                if (s) {
+                  setSettings(s);
+                  // 套用字體大小設定
+                  const scale = parseFloat(s.appFontScale) || 1;
+                  document.documentElement.style.setProperty('--app-font-scale', scale);
+                }
                 if (p) {
                   setAllProducts(p);
                   setRedeemableProducts(p.filter(x => (x.redeemPoints || 0) > 0));
@@ -308,7 +322,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.04</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.05</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -1911,7 +1925,7 @@
                 const today = new Date().toISOString().split('T')[0];
                 const activeCoupons = (user.coupons||[]).filter(c => !c.usedAt && c.expiry >= today);
                 return activeCoupons.length === 0
-                  ? <div className="text-center text-gray-400 text-sm py-4">目前沒有可用優惠券<br/><button onClick={()=>navigate('/campaigns')} className="text-rose-500 font-bold mt-1 text-xs">前往領取喜樂優惠券 →</button></div>
+                  ? <div className="text-center text-gray-400 text-sm py-4">目前沒有可用優惠券<br/><button onClick={()=>navigate('/campaigns')} className="text-rose-500 font-bold mt-1 text-sm app-scalable">前往領取喜樂優惠券 →</button></div>
                   : <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
                     {activeCoupons.slice(0,3).map((coupon,idx) => (
                       <div key={idx} className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex justify-between items-center">
@@ -1939,7 +1953,7 @@
                 <button key={i} onClick={item.a}
                   className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
                   <span className="text-2xl">{item.e}</span>
-                  <span className="text-xs font-bold text-gray-600">{item.l}</span>
+                  <span className="text-sm font-bold text-gray-700 leading-tight text-center app-scalable">{item.l}</span>
                 </button>
               ))}
             </div>
@@ -2982,13 +2996,18 @@
         } catch(e) { showAlert('更新失敗'); }
       };
 
+      const [savingProduct, setSavingProduct] = useState(false);
+
       const handleSaveProduct = async () => {
         if (!editProduct.name || !editProduct.price) { showAlert('商品名稱與價格為必填'); return; }
+        if (savingProduct) return;
+        setSavingProduct(true);
         try {
           const r = await api.post('updateProduct', { adminId:user.lineId, product:editProduct });
-          if (r?.success) { showAlert('商品已儲存'); setEditProduct(null); fetchTabData('products'); }
+          if (r?.success) { showAlert('✅ 商品已儲存'); setEditProduct(null); fetchTabData('products'); }
           else showAlert('儲存失敗：' + (r?.error||''));
         } catch(e) { showAlert('儲存失敗'); }
+        finally { setSavingProduct(false); }
       };
 
       const handleDeleteProduct = async (productId) => {
@@ -3187,7 +3206,10 @@
                 </div>
                 <div className="p-4 flex gap-3 sticky bottom-0 bg-white border-t">
                   <button onClick={() => setEditProduct(null)} className="flex-1 py-3 border rounded-xl font-bold text-gray-500">取消</button>
-                  <button onClick={handleSaveProduct} className="flex-1 py-3 bg-lime-600 text-white rounded-xl font-bold shadow-md">儲存</button>
+                  <button onClick={handleSaveProduct} disabled={savingProduct}
+                    className={`flex-1 py-3 rounded-xl font-bold shadow-md text-white transition-all ${savingProduct?'bg-gray-400 cursor-not-allowed':'bg-lime-600 active:scale-95'}`}>
+                    {savingProduct ? '⏳ 儲存中...' : '儲存'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -3316,7 +3338,7 @@
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
-              <span className="ml-auto text-lime-200 text-xs">V2.04</span>
+              <span className="ml-auto text-lime-200 text-xs">V2.05</span>
             </div>
             {/* 12格功能選單 */}
             <div className="grid grid-cols-4 gap-1.5">
@@ -3870,6 +3892,27 @@
                         <input type={f.type} value={adminSettings[f.key]||''} onChange={e=>setAdminSettings({...adminSettings,[f.key]:f.type==='number'?Number(e.target.value):e.target.value})} className="w-full p-2 border rounded-lg" />
                       </div>
                     ))}
+                    {/* 字體大小設定 */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">🔤 APP 字體大小</label>
+                      <div className="flex gap-2">
+                        {[{v:0.85,l:'小'},{v:1,l:'標準'},{v:1.15,l:'大'},{v:1.3,l:'特大'}].map(opt=>(
+                          <button key={opt.v} onClick={()=>{
+                            setAdminSettings(s=>({...s,appFontScale:opt.v}));
+                            document.documentElement.style.setProperty('--app-font-scale', opt.v);
+                          }}
+                            className={`flex-1 py-2 rounded-xl border-2 font-bold transition-all text-sm ${Math.abs((adminSettings.appFontScale||1)-opt.v)<0.05?'border-lime-500 bg-lime-50 text-lime-700':'border-gray-200 bg-gray-50 text-gray-500'}`}>
+                            {opt.l}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">影響會員中心快速功能、優惠券連結等文字大小</div>
+                    </div>
+                      <div key={f.key}>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">{f.label}</label>
+                        <input type={f.type} value={adminSettings[f.key]||''} onChange={e=>setAdminSettings({...adminSettings,[f.key]:f.type==='number'?Number(e.target.value):e.target.value})} className="w-full p-2 border rounded-lg" />
+                      </div>
+                    ))}
                     <div className="border-t pt-4">
                       <h4 className="font-bold text-base mb-3">🎰 每日好運設定</h4>
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 mb-3">
@@ -3892,13 +3935,18 @@
                         </div>
                       ))}
                     </div>
-                    <button onClick={async () => {
-                      if (!await showConfirm('確定要更新設定嗎？')) return;
+                    <button onClick={async (e) => {
+                      const btn = e.currentTarget;
+                      if (btn.disabled) return;
+                      btn.disabled = true;
+                      btn.textContent = '⏳ 儲存中...';
+                      if (!await showConfirm('確定要更新設定嗎？')) { btn.disabled = false; btn.textContent = '儲存設定'; return; }
                       try {
                         const r = await api.post('updateSettings', { adminId:user.lineId, settings:adminSettings });
-                        if (r?.success) showAlert('設定已更新'); else showAlert('更新失敗：' + (r?.error||''));
-                      } catch(e) { showAlert('更新失敗'); }
-                    }} className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-lime-200 active:scale-95 transition-transform">
+                        if (r?.success) { btn.textContent = '✅ 已儲存！'; setTimeout(()=>{ btn.disabled=false; btn.textContent='儲存設定'; }, 2000); showAlert('設定已更新'); }
+                        else { showAlert('更新失敗：' + (r?.error||'')); btn.disabled = false; btn.textContent = '儲存設定'; }
+                      } catch(e) { showAlert('更新失敗'); btn.disabled = false; btn.textContent = '儲存設定'; }
+                    }} className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-lime-200 active:scale-95 transition-all disabled:opacity-60">
                       儲存設定
                     </button>
                   </div>
@@ -3923,16 +3971,83 @@
                         className="w-full p-2 border rounded-lg text-lg font-mono text-center tracking-widest"
                       />
                     </div>
-                    <button onClick={async () => {
+                    <button onClick={async (e) => {
+                      const btn = e.currentTarget;
+                      if (btn.disabled) return;
+                      btn.disabled = true;
                       const pwd = String(adminSettings.sheetPassword||'').replace(/\D/g,'');
-                      if (pwd.length !== 4) { showAlert('請輸入 4 位數字密碼'); return; }
+                      if (pwd.length !== 4) { showAlert('請輸入 4 位數字密碼'); btn.disabled = false; return; }
                       try {
                         const r = await api.post('updateSettings', { adminId:user.lineId, settings:{ sheetPassword: pwd } });
-                        if (r?.success) { showAlert('✅ 密碼已更新！下次進入敏感分頁需輸入新密碼。'); setAdminSettings(s=>({...s,sheetPassword:pwd})); setSheetPwdUnlocked(false); }
-                        else showAlert('更新失敗：' + (r?.error||''));
-                      } catch(e) { showAlert('更新失敗'); }
-                    }} className="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-transform">
+                        if (r?.success) {
+                          btn.textContent = '✅ 已儲存';
+                          setTimeout(()=>{ btn.disabled=false; btn.textContent='儲存密碼設定'; }, 2000);
+                          showAlert('✅ 密碼已更新！下次進入敏感分頁需輸入新密碼。');
+                          setAdminSettings(s=>({...s,sheetPassword:pwd}));
+                          setSheetPwdUnlocked(false);
+                        } else { showAlert('更新失敗：' + (r?.error||'')); btn.disabled = false; }
+                      } catch(e2) { showAlert('更新失敗'); btn.disabled = false; }
+                    }} className="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all disabled:opacity-60">
                       儲存密碼設定
+                    </button>
+                  </div>
+
+                  {/* 📊 試算表分頁安全管理 */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
+                    <h3 className="font-bold text-base flex items-center gap-2">📊 Google 試算表分頁保護</h3>
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-600 leading-relaxed space-y-1">
+                      <div>• <strong>預設狀態</strong>：訂單、用戶、兌換、設定等分頁<strong>全部隱藏</strong></div>
+                      <div>• <strong>解鎖</strong>：輸入上方密碼後，分頁暫時顯示（60分鐘）</div>
+                      <div>• <strong>管理員 ID</strong> 無需密碼，直接解鎖</div>
+                      <div>• 請先在 GAS 編輯器執行 <code className="bg-gray-200 px-1 rounded">initSheetSecurity()</code> 完成初始化</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button onClick={async (e) => {
+                        const btn = e.currentTarget;
+                        if (btn.disabled) return;
+                        btn.disabled = true; btn.textContent = '解鎖中...';
+                        try {
+                          // 管理員直接解鎖（不需密碼）
+                          const r = await api.post('unlockSheets', { adminId: user.lineId, password: adminSettings.sheetPassword || '0000' });
+                          if (r?.success) {
+                            btn.textContent = '✅ 已解鎖';
+                            setTimeout(()=>{ btn.disabled=false; btn.textContent='🔓 顯示所有分頁'; }, 3000);
+                            showAlert(`✅ 試算表分頁已解鎖！\n顯示：${(r.shown||[]).join(', ')}\n有效時間：60 分鐘`);
+                          } else { showAlert('解鎖失敗：' + (r?.error||'')); btn.disabled=false; btn.textContent='🔓 顯示所有分頁'; }
+                        } catch(err) { showAlert('錯誤：'+err.message); btn.disabled=false; btn.textContent='🔓 顯示所有分頁'; }
+                      }} className="py-3 bg-green-600 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-60">
+                        🔓 顯示所有分頁
+                      </button>
+                      <button onClick={async (e) => {
+                        const btn = e.currentTarget;
+                        if (btn.disabled) return;
+                        btn.disabled = true; btn.textContent = '鎖定中...';
+                        try {
+                          const r = await api.post('lockSheets', { adminId: user.lineId });
+                          if (r?.success) {
+                            btn.textContent = '✅ 已鎖定';
+                            setTimeout(()=>{ btn.disabled=false; btn.textContent='🔒 隱藏所有分頁'; }, 2000);
+                            showAlert(`🔒 試算表分頁已隱藏！\n隱藏：${(r.hidden||[]).join(', ')}`);
+                          } else { showAlert('鎖定失敗：' + (r?.error||'')); btn.disabled=false; btn.textContent='🔒 隱藏所有分頁'; }
+                        } catch(err) { showAlert('錯誤：'+err.message); btn.disabled=false; btn.textContent='🔒 隱藏所有分頁'; }
+                      }} className="py-3 bg-red-500 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-60">
+                        🔒 隱藏所有分頁
+                      </button>
+                    </div>
+                    <button onClick={async (e) => {
+                      if (!await showConfirm('首次設定：這會隱藏所有敏感分頁（Orders/Users/Redemptions/Settings/Campaigns）並啟用密碼保護。確定執行？')) return;
+                      const btn = e.currentTarget;
+                      btn.disabled = true; btn.textContent = '初始化中...';
+                      try {
+                        const r = await api.post('initSheetSecurity', { adminId: user.lineId });
+                        if (r?.success) {
+                          btn.textContent = '✅ 初始化完成';
+                          showAlert(`✅ 分頁保護已初始化！\n已隱藏：${(r.hidden||[]).join(', ')}`);
+                          setTimeout(()=>{ btn.disabled=false; btn.textContent='⚙️ 初始化分頁保護（首次設定）'; }, 3000);
+                        } else { showAlert('失敗：' + (r?.error||'')); btn.disabled=false; btn.textContent='⚙️ 初始化分頁保護（首次設定）'; }
+                      } catch(err) { showAlert('錯誤'); btn.disabled=false; btn.textContent='⚙️ 初始化分頁保護（首次設定）'; }
+                    }} className="w-full py-2.5 border-2 border-gray-300 text-gray-600 rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-60">
+                      ⚙️ 初始化分頁保護（首次設定）
                     </button>
                   </div>
                   </div>
@@ -3961,28 +4076,44 @@
                         </button>
                       )}
                     </div>
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-                      長按並拖曳卡片可調整分類順序，調整後點「儲存排序」生效。
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+                      點擊左側 ▲▼ 按鈕可調整分類順序，調整後點「💾 儲存排序」生效。
                     </div>
                     {localCats.length === 0
                       ? <div className="text-center text-gray-400 py-10">尚無分類</div>
                       : <div className="space-y-2">
                           {localCats.map((c, idx) => (
                             <div key={c.id}
-                              draggable
-                              onDragStart={() => setCatDragIdx(idx)}
-                              onDragOver={e => { e.preventDefault(); }}
-                              onDrop={() => {
-                                if (catDragIdx === null || catDragIdx === idx) return;
-                                const arr = [...localCats];
-                                const [moved] = arr.splice(catDragIdx, 1);
-                                arr.splice(idx, 0, moved);
-                                setLocalCats(arr);
-                                setCatDragIdx(null);
-                              }}
-                              onDragEnd={() => setCatDragIdx(null)}
-                              className={`bg-white rounded-2xl shadow-sm border p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all ${catDragIdx===idx?'border-lime-400 bg-lime-50 shadow-md scale-[1.02]':'border-gray-100'}`}>
-                              <div className="text-gray-300 text-lg select-none">⠿</div>
+                              className={`bg-white rounded-2xl shadow-sm border p-3 flex items-center gap-3 transition-all ${catDragIdx===idx?'border-lime-400 bg-lime-50 shadow-md':'border-gray-100'}`}>
+                              {/* 上下移動按鈕 */}
+                              <div className="flex flex-col gap-0.5 flex-shrink-0">
+                                <button
+                                  disabled={idx === 0}
+                                  onClick={() => {
+                                    if (idx === 0) return;
+                                    const arr = [...localCats];
+                                    [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+                                    setLocalCats(arr);
+                                    setCatDragIdx(idx-1);
+                                    setTimeout(() => setCatDragIdx(null), 300);
+                                  }}
+                                  className={`w-9 h-8 rounded-lg flex items-center justify-center font-bold text-base transition-all active:scale-90 ${idx===0?'bg-gray-50 text-gray-200 cursor-not-allowed':'bg-lime-100 text-lime-600 hover:bg-lime-200 active:bg-lime-300'}`}>
+                                  ▲
+                                </button>
+                                <button
+                                  disabled={idx === localCats.length - 1}
+                                  onClick={() => {
+                                    if (idx === localCats.length - 1) return;
+                                    const arr = [...localCats];
+                                    [arr[idx], arr[idx+1]] = [arr[idx+1], arr[idx]];
+                                    setLocalCats(arr);
+                                    setCatDragIdx(idx+1);
+                                    setTimeout(() => setCatDragIdx(null), 300);
+                                  }}
+                                  className={`w-9 h-8 rounded-lg flex items-center justify-center font-bold text-base transition-all active:scale-90 ${idx===localCats.length-1?'bg-gray-50 text-gray-200 cursor-not-allowed':'bg-lime-100 text-lime-600 hover:bg-lime-200 active:bg-lime-300'}`}>
+                                  ▼
+                                </button>
+                              </div>
                               {c.iconUrl
                                 ? <img src={c.iconUrl} className="w-10 h-10 rounded-xl object-cover bg-gray-100 flex-shrink-0" referrerPolicy="no-referrer" />
                                 : <div className="w-10 h-10 rounded-xl bg-lime-100 flex items-center justify-center text-lg flex-shrink-0">🏷️</div>}
@@ -4097,7 +4228,7 @@
               ? <div className="text-center py-16 text-gray-400">
                   <div className="text-5xl mb-3">🎟️</div>
                   <div className="font-bold">沒有可用的優惠券</div>
-                  <button onClick={()=>navigate('/campaigns')} className="mt-3 text-rose-500 font-bold text-sm">前往領取喜樂優惠券 →</button>
+                  <button onClick={()=>navigate('/campaigns')} className="mt-3 text-rose-500 font-bold text-base app-scalable">前往領取喜樂優惠券 →</button>
                 </div>
               : active.map((c,i)=><CouponCard key={i} c={c} dim={false} />)
             )}
