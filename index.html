@@ -4780,11 +4780,9 @@
     // =====================================================
     const App = () => {
       // ✅ 電腦版偵測：非手機且非 LIFF 環境顯示提示頁
-     const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-const isLiffClient = window.location.href.includes('liff') || 
-                     document.referrer.includes('line.me') ||
-                     window.location.search.includes('liff');
-if (!isMobile && !isLiffClient) {
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const isLiffClient = typeof liff !== 'undefined' && (() => { try { return liff.isInClient(); } catch(e) { return false; } })();
+      if (!isMobile && !isLiffClient) {
         return (
           <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#4ade80 0%,#22c55e 50%,#16a34a 100%)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'system-ui,sans-serif',padding:'24px'}}>
             <div style={{background:'white',borderRadius:'24px',padding:'40px 32px',maxWidth:'420px',width:'100%',textAlign:'center',boxShadow:'0 20px 60px rgba(0,0,0,0.15)'}}>
