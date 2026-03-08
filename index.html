@@ -63,60 +63,10 @@
     };
   </script>
   <div id="root">
-    <div id="initial-loading" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0fdf4 0%,#ffffff 50%,#ecfdf5 100%);padding:24px;font-family:system-ui,-apple-system,sans-serif;">
-      <!-- Logo -->
-      <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;">
-        <div style="width:80px;height:80px;background:linear-gradient(135deg,#4ade80,#10b981);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 8px 24px rgba(74,222,128,0.35);margin-bottom:14px;">🌿</div>
-        <div style="font-size:24px;font-weight:900;color:#15803d;letter-spacing:0.05em;">美好的事</div>
-        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
-          <span style="background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #bbf7d0;"> V2.03</span>
-          <span style="color:#9ca3af;font-size:12px;">正在為您載入...</span>
-        </div>
-      </div>
-      <!-- 旋轉動畫 -->
-      <div style="position:relative;margin-bottom:32px;">
-        <div style="width:52px;height:52px;border:4px solid #dcfce7;border-top-color:#22c55e;border-radius:50%;animation:il-spin 0.85s linear infinite;"></div>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-          <div style="width:22px;height:22px;background:#22c55e;border-radius:50%;opacity:0.15;animation:il-ping 1.1s ease-in-out infinite;"></div>
-        </div>
-      </div>
-      <!-- 購物流程 -->
-      <div style="width:100%;max-width:300px;">
-        <div style="text-align:center;font-size:11px;color:#9ca3af;font-weight:700;letter-spacing:0.1em;margin-bottom:10px;">購物流程</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.85);border-radius:14px;padding:10px 14px;border:1px solid #f3f4f6;">
-            <div style="width:34px;height:34px;background:linear-gradient(135deg,#4ade80,#34d399);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">🛍️</div>
-            <div style="flex:1;"><div style="font-weight:700;color:#374151;font-size:13px;">瀏覽商品</div><div style="color:#9ca3af;font-size:11px;">精選好物等你發現</div></div>
-            <div style="width:20px;height:20px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:900;border-radius:50%;display:flex;align-items:center;justify-content:center;">1</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.85);border-radius:14px;padding:10px 14px;border:1px solid #f3f4f6;">
-            <div style="width:34px;height:34px;background:linear-gradient(135deg,#4ade80,#34d399);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">🛒</div>
-            <div style="flex:1;"><div style="font-weight:700;color:#374151;font-size:13px;">加入購物車</div><div style="color:#9ca3af;font-size:11px;">收藏心儀商品</div></div>
-            <div style="width:20px;height:20px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:900;border-radius:50%;display:flex;align-items:center;justify-content:center;">2</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.85);border-radius:14px;padding:10px 14px;border:1px solid #f3f4f6;">
-            <div style="width:34px;height:34px;background:linear-gradient(135deg,#4ade80,#34d399);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">📝</div>
-            <div style="flex:1;"><div style="font-weight:700;color:#374151;font-size:13px;">填寫資料</div><div style="color:#9ca3af;font-size:11px;">選取貨方式、填收件資訊</div></div>
-            <div style="width:20px;height:20px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:900;border-radius:50%;display:flex;align-items:center;justify-content:center;">3</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.85);border-radius:14px;padding:10px 14px;border:1px solid #f3f4f6;">
-            <div style="width:34px;height:34px;background:linear-gradient(135deg,#4ade80,#34d399);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">💳</div>
-            <div style="flex:1;"><div style="font-weight:700;color:#374151;font-size:13px;">完成付款</div><div style="color:#9ca3af;font-size:11px;">轉帳 / 門市 / 超商取貨</div></div>
-            <div style="width:20px;height:20px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:900;border-radius:50%;display:flex;align-items:center;justify-content:center;">4</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.85);border-radius:14px;padding:10px 14px;border:1px solid #f3f4f6;">
-            <div style="width:34px;height:34px;background:linear-gradient(135deg,#4ade80,#34d399);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">🎁</div>
-            <div style="flex:1;"><div style="font-weight:700;color:#374151;font-size:13px;">收到商品</div><div style="color:#9ca3af;font-size:11px;">享受美好生活</div></div>
-            <div style="width:20px;height:20px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:900;border-radius:50%;display:flex;align-items:center;justify-content:center;">5</div>
-          </div>
-        </div>
-      </div>
-      <div style="margin-top:24px;font-size:11px;color:#d1d5db;">© 2026 美好的事 · 讓生活更美好</div>
-    </div>
+    <div style="min-height:100vh;background:#f0fdf4;"></div>
   </div>
   <style>
     @keyframes il-spin { to { transform: rotate(360deg); } }
-    @keyframes il-ping { 0%,100%{ transform:scale(1); opacity:0.15; } 50%{ transform:scale(1.5); opacity:0.4; } }
   </style>
   <script type="text/babel">
     console.log('Step 1: Script started');
@@ -358,7 +308,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.03</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.04</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -431,12 +381,22 @@
     // 商品卡片（memo 化，避免不必要的重新渲染）
     // =====================================================
     const ProductCard = React.memo(({ product }) => {
+      const { allCategories } = useAppContext();
       // ✅ 計算總庫存（支援 "3,5" 格式）
       const totalStock = String(product.stock || '0').split(',').map(s => Number(s.trim()) || 0).reduce((a, b) => a + b, 0);
+      const catIcon = !product.images?.[0] ? (allCategories.find(c => c.id === product.categoryId)?.iconUrl || '') : '';
       return (
         <Link to={`/product/${product.id}`} className="block bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg transition-all group relative">
           <div className="aspect-square w-full bg-gray-100 relative overflow-hidden">
-            {product.images?.[0] ? <img src={product.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" /> : <div className="flex items-center justify-center h-full text-gray-400">無圖片</div>}
+            {product.images?.[0]
+              ? <img src={product.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
+              : catIcon
+                ? <div className="flex flex-col items-center justify-center h-full gap-2 bg-gradient-to-br from-gray-50 to-gray-100">
+                    <img src={catIcon} className="w-16 h-16 object-contain opacity-60" referrerPolicy="no-referrer" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
+                    <div style={{display:'none'}} className="flex items-center justify-center text-3xl opacity-30">🛍️</div>
+                  </div>
+                : <div className="flex items-center justify-center h-full text-4xl opacity-20">🛍️</div>
+            }
             {product.isOnSale && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">SALE</div>}
             {totalStock <= 0 && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">售完</span></div>}
             {totalStock > 0 && <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm">庫存: {totalStock}</div>}
@@ -1490,18 +1450,24 @@
       const { showAlert, showConfirm } = useDialog();
       const navigate = useNavigate();
       const [orders, setOrders] = useState([]);
+      const [redemptions, setRedemptions] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'redemptions'
       const [editOrder, setEditOrder] = useState(null);
       const [editForm, setEditForm] = useState({});
-      const [editPickupOrder, setEditPickupOrder] = useState(null); // 修改預約時間的訂單
+      const [editPickupOrder, setEditPickupOrder] = useState(null);
       const [newPickupTime, setNewPickupTime] = useState('');
 
       useEffect(() => {
         if (!user || user.lineId === 'guest') { setLoading(false); return; }
-        api.getUserOrders(user.lineId).then(data => {
-          if (data && !data.error) setOrders(data);
+        Promise.all([
+          api.getUserOrders(user.lineId).catch(()=>null),
+          api.get('getUserRedemptions', { lineId: user.lineId }).catch(()=>null)
+        ]).then(([ordersData, redeemsData]) => {
+          if (ordersData && !ordersData.error) setOrders(ordersData);
+          if (redeemsData && !redeemsData.error && Array.isArray(redeemsData)) setRedemptions(redeemsData);
           setLoading(false);
-        }).catch(() => setLoading(false));
+        });
       }, [user]);
 
       const handleCancel = async (order) => {
@@ -1584,6 +1550,17 @@
             <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
             <h1 className="font-bold text-lg">訂單紀錄</h1>
           </div>
+          {/* Tab 切換 */}
+          <div className="sticky top-[57px] z-10 bg-white border-b border-gray-100 px-4 flex gap-1 shadow-sm">
+            <button onClick={()=>setActiveTab('orders')}
+              className={`flex-1 py-3 text-sm font-bold transition-colors flex items-center justify-center gap-1.5 border-b-2 ${activeTab==='orders'?'border-lime-500 text-lime-600':'border-transparent text-gray-400'}`}>
+              📦 一般訂單 <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{orders.length}</span>
+            </button>
+            <button onClick={()=>setActiveTab('redemptions')}
+              className={`flex-1 py-3 text-sm font-bold transition-colors flex items-center justify-center gap-1.5 border-b-2 ${activeTab==='redemptions'?'border-orange-400 text-orange-600':'border-transparent text-gray-400'}`}>
+              🎁 點數兌換 <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{redemptions.length}</span>
+            </button>
+          </div>
           {/* 修改收件資訊 Modal */}
           {editOrder && (
             <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
@@ -1628,6 +1605,36 @@
           <div className="p-4 space-y-4">
             {loading ? <div className="text-center text-gray-400 py-10">載入中...</div> :
              !user || user.lineId==='guest' ? <div className="text-center text-gray-400 py-10">請先登入 LINE</div> :
+             activeTab === 'redemptions' ? (
+              redemptions.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Gift className="w-10 h-10 text-orange-300" /></div>
+                  <p className="text-gray-400 font-medium">尚無兌換紀錄</p>
+                  <button onClick={()=>navigate('/redeem')} className="inline-block mt-4 bg-orange-500 text-white px-6 py-2 rounded-full text-sm font-bold">去兌換</button>
+                </div>
+              ) : redemptions.map((r, i) => {
+                const stMap = { Pending:{label:'審核中',color:'bg-yellow-100 text-yellow-700',icon:'⏳'}, Shipped:{label:'已出貨',color:'bg-blue-100 text-blue-700',icon:'📦'}, Completed:{label:'已完成',color:'bg-green-100 text-green-700',icon:'✅'}, Cancelled:{label:'已取消',color:'bg-red-100 text-red-700',icon:'❌'} };
+                const st = stMap[r.status] || {label:r.status,color:'bg-gray-100 text-gray-600',icon:'📋'};
+                return (
+                  <div key={r.redemptionId||i} className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+                    <div className="bg-orange-50 px-4 py-2.5 flex justify-between items-center border-b border-orange-100">
+                      <div>
+                        <div className="font-bold text-orange-800 text-sm">{r.redemptionId}</div>
+                        <div className="text-xs text-orange-400">{r.date ? new Date(r.date).toLocaleString('zh-TW') : ''}</div>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${st.color}`}>{st.icon} {st.label}</span>
+                    </div>
+                    <div className="p-4">
+                      <div className="font-bold text-gray-800 mb-1">{r.content?.itemName || r.itemName || '兌換商品'}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-orange-600 font-black text-lg">-{r.content?.points || r.points} 點</span>
+                        <span className="text-xs text-gray-400">點數兌換</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+             ) :
              orders.length===0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><Icons.ClipboardList className="w-10 h-10" /></div>
@@ -2016,6 +2023,17 @@
       const { showAlert, showConfirm } = useDialog();
       const navigate = useNavigate();
       const [processing, setProcessing] = useState(false);
+      const [redemptions, setRedemptions] = useState([]);
+      const [loadingHistory, setLoadingHistory] = useState(true);
+
+      useEffect(() => {
+        if (!user || user.lineId === 'guest') { setLoadingHistory(false); return; }
+        api.get('getUserRedemptions', { lineId: user.lineId }).then(r => {
+          if (r && !r.error && Array.isArray(r)) setRedemptions(r);
+          setLoadingHistory(false);
+        }).catch(() => setLoadingHistory(false));
+      }, [user]);
+
       const handleRedeem = async (product) => {
         if (!user) return;
         if ((user.points||0) < product.redeemPoints) { showAlert('點數不足無法兌換'); return; }
@@ -2026,43 +2044,81 @@
           if (res?.success) {
             showAlert('兌換申請已送出！請等待管理員審核。');
             setUser({ ...user, points: user.points - product.redeemPoints });
-            navigate('/profile');
+            // 更新本地兌換紀錄
+            setRedemptions(prev => [{ redemptionId: res.redemptionId || `R${Date.now()}`, date: new Date().toISOString(), status: 'Pending', content: { itemName: product.name, points: product.redeemPoints } }, ...prev]);
           } else { showAlert('兌換失敗: ' + (res?.error||'未知錯誤')); }
         } catch(e) { showAlert('發生錯誤，請稍後再試'); }
         finally { setProcessing(false); }
       };
+
+      const redeemStatusMap = { Pending:{label:'審核中',color:'bg-yellow-100 text-yellow-700'}, Shipped:{label:'已出貨',color:'bg-blue-100 text-blue-700'}, Completed:{label:'已完成',color:'bg-green-100 text-green-700'}, Cancelled:{label:'已取消',color:'bg-red-100 text-red-700'} };
+
       return (
         <div className="min-h-screen bg-gray-50 pb-24 font-sans">
           <div className="bg-white p-4 sticky top-0 shadow-sm z-50 flex items-center gap-3">
             <button onClick={() => navigate(-1)}><Icons.ArrowLeft /></button>
             <h1 className="font-bold text-lg">點數兌換專區</h1>
           </div>
-          <div className="p-4">
-            <div className="bg-gradient-to-r from-lime-500 to-lime-600 text-white p-6 rounded-2xl mb-6 flex justify-between items-center shadow-lg shadow-lime-200">
+          <div className="p-4 space-y-6">
+            {/* 點數卡 */}
+            <div className="bg-gradient-to-r from-lime-500 to-lime-600 text-white p-6 rounded-2xl flex justify-between items-center shadow-lg shadow-lime-200">
               <div><div className="text-lime-100 text-sm font-medium mb-1">目前持有點數</div><span className="text-3xl font-black">{user?.points||0}</span> <span className="text-sm opacity-80">pts</span></div>
               <div className="bg-white/20 p-3 rounded-full"><Icons.Gift size={32} className="text-white" /></div>
             </div>
-            {redeemableProducts.length===0 ? (
-              <div className="text-center text-gray-500 py-10"><div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Gift className="w-8 h-8 text-gray-400" /></div>目前沒有可兌換的商品</div>
-            ) : (
-              <div className="grid gap-4">
-                {redeemableProducts.map(p => (
-                  <div key={p.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col border border-gray-100">
-                    <div className="aspect-video w-full bg-gray-100 relative"><img src={p.images?.[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" /></div>
-                    <div className="p-4 flex-1 flex flex-col justify-between">
-                      <div><h3 className="font-bold text-gray-800 mb-1">{p.name}</h3><p className="text-xs text-gray-500 line-clamp-2 mb-3">{p.description}</p></div>
-                      <div className="flex justify-between items-center mt-2 border-t border-gray-100 pt-3">
-                        <span className="text-lime-600 font-black text-lg">{p.redeemPoints} 點</span>
-                        <button disabled={processing||(user?.points||0)<p.redeemPoints} onClick={() => handleRedeem(p)}
-                          className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${(user?.points||0)>=p.redeemPoints?'bg-lime-500 text-white hover:bg-lime-600':'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
-                          {processing?'處理中...':'立即兌換'}
-                        </button>
+
+            {/* 可兌換商品 */}
+            <div>
+              <h2 className="font-black text-gray-800 text-base mb-3 flex items-center gap-2">🎁 可兌換商品</h2>
+              {redeemableProducts.length===0 ? (
+                <div className="text-center text-gray-500 py-10 bg-white rounded-2xl"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3"><Icons.Gift className="w-7 h-7 text-gray-400" /></div>目前沒有可兌換的商品</div>
+              ) : (
+                <div className="grid gap-4">
+                  {redeemableProducts.map(p => (
+                    <div key={p.id} className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col border border-gray-100">
+                      <div className="aspect-video w-full bg-gray-100 relative"><img src={p.images?.[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" /></div>
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div><h3 className="font-bold text-gray-800 mb-1">{p.name}</h3><p className="text-xs text-gray-500 line-clamp-2 mb-3">{p.description}</p></div>
+                        <div className="flex justify-between items-center mt-2 border-t border-gray-100 pt-3">
+                          <span className="text-lime-600 font-black text-lg">{p.redeemPoints} 點</span>
+                          <button disabled={processing||(user?.points||0)<p.redeemPoints} onClick={() => handleRedeem(p)}
+                            className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${(user?.points||0)>=p.redeemPoints?'bg-lime-500 text-white hover:bg-lime-600':'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                            {processing?'處理中...':'立即兌換'}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 兌換紀錄 */}
+            <div>
+              <h2 className="font-black text-gray-800 text-base mb-3 flex items-center gap-2">📋 兌換紀錄</h2>
+              {loadingHistory ? (
+                <div className="text-center py-8 text-gray-400 text-sm">載入中...</div>
+              ) : redemptions.length === 0 ? (
+                <div className="text-center py-10 bg-white rounded-2xl text-gray-400 text-sm">尚無兌換紀錄</div>
+              ) : (
+                <div className="space-y-3">
+                  {redemptions.map((r, i) => {
+                    const st = redeemStatusMap[r.status] || {label:r.status,color:'bg-gray-100 text-gray-600'};
+                    return (
+                      <div key={r.redemptionId||i} className="bg-white rounded-2xl border-l-4 border-orange-400 shadow-sm p-4">
+                        <div className="flex justify-between items-start mb-1">
+                          <div>
+                            <div className="font-bold text-gray-800 text-sm">{r.content?.itemName || r.itemName || '兌換商品'}</div>
+                            <div className="text-xs text-gray-400 mt-0.5">{r.redemptionId} · {r.date ? new Date(r.date).toLocaleDateString('zh-TW') : ''}</div>
+                          </div>
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${st.color}`}>{st.label}</span>
+                        </div>
+                        <div className="text-orange-600 font-black text-sm mt-1">-{r.content?.points || r.points} 點</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -2606,26 +2662,7 @@
             <div className="text-xs leading-relaxed">不需要用戶在 LINE 中開啟，後端透過 Channel Token 直接送達。可推播給單一用戶或廣播給所有已註冊會員。</div>
           </div>
 
-          {/* 🔍 除錯區塊 */}
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-2">
-            <div className="text-sm font-bold text-gray-700 flex items-center gap-2">🔍 Token 除錯診斷</div>
-            <div className="text-xs text-gray-500">點下方按鈕，系統會嘗試推播給你自己並回報詳細診斷結果</div>
-            <button onClick={runDebug} disabled={debugLoading}
-              className="w-full py-2.5 rounded-xl border-2 border-gray-300 text-gray-700 font-bold text-sm bg-white active:scale-95 transition-all disabled:opacity-50">
-              {debugLoading ? '診斷中...' : '🔍 執行 LINE 推播除錯'}
-            </button>
-            {debugResult && (
-              <div className={`rounded-xl p-3 text-xs space-y-1 font-mono ${debugResult.ok ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
-                <div className="font-bold text-sm">{debugResult.ok ? '✅ 推播成功！請檢查你的 LINE 訊息' : '❌ 推播失敗'}</div>
-                {debugResult.step && <div>步驟：{debugResult.step}</div>}
-                {debugResult.tokenLen !== undefined && <div>Token 長度：{debugResult.tokenLen} 字元 ／ 前15碼：{debugResult.tokenPreview}</div>}
-                {debugResult.httpCode && <div>HTTP 狀態碼：{debugResult.httpCode}</div>}
-                {debugResult.apiMessage && <div>API 回應：{debugResult.apiMessage}</div>}
-                {debugResult.hint && <div className="font-bold text-orange-700">💡 {debugResult.hint}</div>}
-                {debugResult.reason && <div>原因：{debugResult.reason}</div>}
-              </div>
-            )}
-          </div>
+          {/* 🔍 除錯區塊已移除 */}
 
           {/* 模式切換 */}
           <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
@@ -2761,6 +2798,10 @@
             if (r && !r.error) setSalesReport(r);
           } else if (currentTab==='broadcast') {
             // broadcast 不需要預載資料
+          } else if (currentTab==='categories') {
+            // categories loaded from allCategories context
+          } else if (currentTab==='notices') {
+            // notices - static tab, no preload needed
           } else if (currentTab==='inventory') {
             const r = await api.fetchProducts();
             if (r) {
@@ -3129,25 +3170,32 @@
           )}
 
           <div className="bg-lime-600 text-white p-4 sticky top-0 z-10 shadow-md">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
+              <span className="ml-auto text-lime-200 text-xs">V2.04</span>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {/* 12格功能選單 */}
+            <div className="grid grid-cols-4 gap-1.5">
               {[
-                {id:'dashboard',label:'📊 總覽'},
-                {id:'orders',label:'📦 訂單'},
-                {id:'products',label:'🛍 商品'},
-                {id:'redemptions',label:'🎁 兌換'},
-                {id:'users',label:'👥 用戶'},
-                {id:'inventory',label:'📦 庫存'},
-                {id:'campaigns',label:'🎟 活動券'},
-                {id:'report',label:'📈 報表'},
-                {id:'broadcast',label:'📢 廣播'},
-                {id:'settings',label:'⚙️ 設定'},
+                {id:'dashboard', icon:'📊', label:'總覽'},
+                {id:'orders',    icon:'📦', label:'訂單'},
+                {id:'products',  icon:'🛍️', label:'商品'},
+                {id:'redemptions',icon:'🎁',label:'兌換'},
+                {id:'users',     icon:'👥', label:'用戶'},
+                {id:'inventory', icon:'🗄️', label:'庫存'},
+                {id:'campaigns', icon:'🎟️', label:'活動券'},
+                {id:'report',    icon:'📈', label:'報表'},
+                {id:'broadcast', icon:'📢', label:'廣播'},
+                {id:'settings',  icon:'⚙️', label:'設定'},
+                {id:'categories',icon:'🏷️', label:'分類'},
+                {id:'notices',   icon:'📣', label:'公告'},
               ].map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${tab===t.id?'bg-white text-lime-600':'bg-lime-700 text-lime-100'}`}>{t.label}</button>
+                  className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl font-bold text-xs transition-all active:scale-95 ${tab===t.id ? 'bg-white text-lime-700 shadow-sm' : 'bg-lime-700/60 text-lime-100 hover:bg-lime-700'}`}>
+                  <span className="text-base leading-none mb-0.5">{t.icon}</span>
+                  <span className="leading-none">{t.label}</span>
+                </button>
               ))}
             </div>
           </div>
@@ -3711,6 +3759,61 @@
                       儲存設定
                     </button>
                   </div>
+                  </div>
+                )}
+
+                {/* 🏷️ 分類管理 */}
+                {tab==='categories' && (
+                  <div className="space-y-4">
+                    <button onClick={()=>setShowAddCategoryModal(true)} className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-md flex items-center justify-center gap-2">
+                      ＋ 新增分類
+                    </button>
+                    {allCategories.length === 0
+                      ? <div className="text-center text-gray-400 py-10">尚無分類</div>
+                      : <div className="space-y-3">
+                          {allCategories.map(c => (
+                            <div key={c.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
+                              {c.iconUrl
+                                ? <img src={c.iconUrl} className="w-10 h-10 rounded-xl object-cover bg-gray-100" referrerPolicy="no-referrer" />
+                                : <div className="w-10 h-10 rounded-xl bg-lime-100 flex items-center justify-center text-lg">🏷️</div>}
+                              <div className="flex-1">
+                                <div className="font-bold text-gray-800">{c.name}</div>
+                                <div className="text-xs text-gray-400 font-mono">{c.id}</div>
+                              </div>
+                              <button onClick={()=>{ setNewCategory({id:c.id,name:c.name,iconUrl:c.iconUrl||''}); setShowAddCategoryModal(true); }}
+                                className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
+                            </div>
+                          ))}
+                        </div>
+                    }
+                  </div>
+                )}
+
+                {/* 📣 公告管理 */}
+                {tab==='notices' && (
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-800">
+                      <div className="font-bold mb-1">📣 跑馬燈公告</div>
+                      <div className="text-xs leading-relaxed">修改下方文字後儲存，首頁頂部即會顯示跑馬燈公告。</div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
+                      <label className="text-sm font-bold text-gray-700 block">公告內容（跑馬燈）</label>
+                      <textarea value={adminSettings.marqueeText||''} onChange={e=>setAdminSettings({...adminSettings,marqueeText:e.target.value})}
+                        placeholder="輸入跑馬燈公告內容，留空則不顯示..."
+                        className="w-full p-3 border rounded-xl text-sm bg-gray-50 min-h-[120px] resize-none" />
+                      <label className="text-sm font-bold text-gray-700 block mt-2">營業時間說明</label>
+                      <input value={adminSettings.businessHours||''} onChange={e=>setAdminSettings({...adminSettings,businessHours:e.target.value})}
+                        placeholder="例：週二～週日 11:30-20:00，週一公休"
+                        className="w-full p-2 border rounded-xl text-sm bg-gray-50" />
+                      <button onClick={async()=>{
+                        try {
+                          const r = await api.post('updateSettings', { adminId:user.lineId, settings:{ marqueeText:adminSettings.marqueeText, businessHours:adminSettings.businessHours } });
+                          if (r?.success) showAlert('公告已更新'); else showAlert('更新失敗：' + (r?.error||''));
+                        } catch(e) { showAlert('更新失敗'); }
+                      }} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform">
+                        儲存公告設定
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
