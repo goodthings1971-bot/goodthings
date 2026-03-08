@@ -69,7 +69,7 @@
         <div style="width:80px;height:80px;background:linear-gradient(135deg,#4ade80,#10b981);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 8px 24px rgba(74,222,128,0.35);margin-bottom:14px;">🌿</div>
         <div style="font-size:24px;font-weight:900;color:#15803d;letter-spacing:0.05em;">美好的事</div>
         <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
-          <span style="background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #bbf7d0;">V2.02</span>
+          <span style="background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #bbf7d0;"> V2.03</span>
           <span style="color:#9ca3af;font-size:12px;">正在為您載入...</span>
         </div>
       </div>
@@ -277,17 +277,25 @@
       const [allProducts, setAllProducts] = useState([]);
       const [allCategories, setAllCategories] = useState([]); // ✅ 分類快取，隨主資料一起載入
       const [isLoading, setIsLoading] = useState(true);
+      const [loadProgress, setLoadProgress] = useState(0); // 0~100
+      const dataLoadedRef = React.useRef(false); // ✅ 防止重複載入
       useEffect(() => {
+        if (dataLoadedRef.current) return; // ✅ 只執行一次
+        dataLoadedRef.current = true;
         const initApp = async () => {
           try {
             try { const s = localStorage.getItem('cart'); if (s) setCart(JSON.parse(s)); } catch(e) {}
+            setLoadProgress(10);
             const loadLiff = async () => {
               if (typeof liff === 'undefined') { setUser({ lineId: 'guest', name: '訪客', points: 0 }); return; }
               try {
                 await liff.init({ liffId: LIFF_ID });
+                setLoadProgress(p => Math.max(p, 30));
                 if (liff.isLoggedIn()) {
                   const profile = await liff.getProfile();
+                  setLoadProgress(p => Math.max(p, 50));
                   const dbUser = await api.getUserProfile(profile.userId);
+                  setLoadProgress(p => Math.max(p, 65));
                   setUser({ lineId: profile.userId, name: profile.displayName, pictureUrl: profile.pictureUrl, points: 0, coupons: [], ...(dbUser || {}) });
                 } else { setUser({ lineId: 'guest', name: '訪客', points: 0 }); }
               } catch (err) {
@@ -298,6 +306,7 @@
             const loadData = async () => {
               try {
                 const [s, p, c] = await Promise.all([api.fetchSettings(), api.fetchProducts(), api.fetchCategories()]);
+                setLoadProgress(p2 => Math.max(p2, 85));
                 if (s) setSettings(s);
                 if (p) {
                   setAllProducts(p);
@@ -307,6 +316,7 @@
               } catch(e) { console.error('Data load fail', e); }
             };
             await Promise.all([loadLiff(), loadData()]);
+            setLoadProgress(100);
           } finally { setIsLoading(false); }
         };
         initApp();
@@ -338,30 +348,34 @@
           { icon:'💳', label:'完成付款', desc:'轉帳/門市/超商取貨' },
           { icon:'🎁', label:'收到商品', desc:'享受美好生活' },
         ];
+        const progressLabel = loadProgress < 30 ? '初始化中...' : loadProgress < 65 ? '驗證身份中...' : loadProgress < 85 ? '載入商品中...' : loadProgress < 100 ? '即將完成...' : '完成！';
         return (
           <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-lime-50 via-white to-emerald-50 px-6">
             {/* Logo */}
-            <div className="flex flex-col items-center mb-8">
+            <div className="flex flex-col items-center mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-3xl flex items-center justify-center shadow-xl shadow-lime-200 mb-4">
                 <span className="text-4xl">🌿</span>
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.02</span>
-                <span className="text-gray-400 text-xs">正在為您載入...</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.03</span>
+                <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
-            {/* 轉圈動畫 */}
-            <div className="relative mb-10">
-              <div className="w-14 h-14 border-4 border-lime-100 border-t-lime-500 rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-6 h-6 bg-lime-500 rounded-full opacity-20 animate-ping"></div>
+            {/* 進度條 */}
+            <div className="w-full max-w-xs mb-8">
+              <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+                <span>載入進度</span>
+                <span className="font-bold text-lime-600">{loadProgress}%</span>
+              </div>
+              <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-lime-400 to-emerald-500 rounded-full transition-all duration-500 ease-out" style={{width: loadProgress + '%'}}></div>
               </div>
             </div>
             {/* 購物流程卡片 */}
             <div className="w-full max-w-xs">
-              <p className="text-center text-xs text-gray-400 font-bold uppercase tracking-wider mb-4">購物流程</p>
-              <div className="space-y-2.5">
+              <p className="text-center text-xs text-gray-400 font-bold uppercase tracking-wider mb-3">購物流程</p>
+              <div className="space-y-2">
                 {steps.map((s, i) => (
                   <div key={i} className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
                     <div className="w-9 h-9 bg-gradient-to-br from-lime-400 to-emerald-400 rounded-xl flex items-center justify-center shadow-sm text-lg flex-shrink-0">{s.icon}</div>
@@ -374,7 +388,7 @@
                 ))}
               </div>
             </div>
-            <p className="mt-8 text-xs text-gray-300">© 2026 美好的事 · 讓生活更美好</p>
+            <p className="mt-6 text-xs text-gray-300">© 2026 美好的事 · 讓生活更美好</p>
           </div>
         );
       }
@@ -606,7 +620,8 @@
             (p.description||'').toLowerCase().includes(q)
           );
         }
-        return list;
+        // ✅ SALE 商品優先顯示
+        return [...list].sort((a, b) => (b.isOnSale ? 1 : 0) - (a.isOnSale ? 1 : 0));
       }, [products, activeCat, searchQuery]);
       const getGridClass = (s) => ({ 'XL':'grid-cols-1','L':'grid-cols-2','M':'grid-cols-3','S':'grid-cols-4','XS':'grid-cols-5' }[s] || 'grid-cols-3');
       const isAdmin = user && ADMIN_IDS.includes(user.lineId);
@@ -824,7 +839,7 @@
                   <button key={c.id} onClick={() => setActiveCat(c.id)}
                     className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1.5 ${activeCat===c.id?'bg-white text-lime-600':'bg-lime-600/50 text-white'}`}>
                     {c.iconUrl && <img src={c.iconUrl} className="w-4 h-4 rounded-sm object-cover" referrerPolicy="no-referrer" onError={e=>e.target.style.display='none'} />}
-                    {c.name}{' '}
+                    {c.name}{'\u00a0\u00a0'}
                   </button>
                 ))}
               </div>
@@ -852,36 +867,55 @@
           {/* ── FAB 區：尺寸選單 + 刷新 ── */}
           <div className="fixed bottom-24 right-4 z-30 flex flex-col items-end gap-2.5">
             {showSizeMenu && (
-              <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in" style={{minWidth:'110px'}}>
-                <div className="bg-gradient-to-r from-lime-500 to-emerald-500 px-3 py-2 text-white text-xs font-black tracking-wider">顯示大小</div>
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in" style={{minWidth:'130px'}}>
+                <div className="px-3 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 text-white text-xs font-black tracking-wider flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                  顯示大小
+                </div>
                 {[
-                  {s:'XL', label:'特大', icon:'▬▬'},
-                  {s:'L',  label:'大',   icon:'▬▬▬'},
-                  {s:'M',  label:'中',   icon:'▬▬▬▬'},
-                  {s:'S',  label:'小',   icon:'▬▬▬▬▬'},
-                  {s:'XS', label:'特小', icon:'▬▬▬▬▬▬'},
-                ].map(({s, label, icon}) => (
+                  {s:'XL', label:'特大', cols:1},
+                  {s:'L',  label:'大',   cols:2},
+                  {s:'M',  label:'中',   cols:3},
+                  {s:'S',  label:'小',   cols:4},
+                  {s:'XS', label:'特小', cols:5},
+                ].map(({s, label, cols}) => (
                   <button key={s} onClick={() => { setIconSize(s); setShowSizeMenu(false); }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${iconSize===s ? 'bg-lime-50 text-lime-700 font-black' : 'text-gray-600 hover:bg-gray-50'}`}>
-                    <span className={`text-[8px] tracking-tighter leading-none ${iconSize===s?'text-lime-500':'text-gray-300'}`}>{icon}</span>
-                    <span className="font-bold">{label}</span>
-                    {iconSize===s && <span className="ml-auto text-lime-500 text-xs">✓</span>}
+                    <div className="flex gap-0.5 flex-shrink-0">
+                      {Array.from({length: cols}).map((_,i) => (
+                        <div key={i} className={`h-3 rounded-sm ${iconSize===s ? 'bg-lime-400' : 'bg-gray-200'}`} style={{width: `${Math.max(3, 18/cols-1)}px`}}></div>
+                      ))}
+                    </div>
+                    <span className="font-bold text-xs">{label}</span>
+                    {iconSize===s && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5 text-lime-500 ml-auto"><path d="M20 6L9 17l-5-5"/></svg>}
                   </button>
                 ))}
               </div>
             )}
             {/* 尺寸按鈕 */}
             <button onClick={() => setShowSizeMenu(!showSizeMenu)}
-              className={`w-13 h-13 rounded-2xl shadow-lg flex items-center justify-center transition-all active:scale-90 ${showSizeMenu ? 'bg-lime-600 text-white shadow-lime-200' : 'bg-white text-lime-600 border border-lime-100'}`}
-              style={{width:'52px',height:'52px'}}>
-              <Icons.LayoutGrid size={22} />
+              className={`flex flex-col items-center justify-center rounded-2xl shadow-lg transition-all active:scale-90 gap-0.5 ${showSizeMenu ? 'bg-lime-600 text-white shadow-lime-300' : 'bg-white text-lime-600 border border-lime-100'}`}
+              style={{width:'52px',height:'52px'}} title="顯示大小">
+              <div className="flex gap-0.5">
+                <div className={`w-2 h-2 rounded-sm ${showSizeMenu ? 'bg-lime-200' : 'bg-lime-300'}`}></div>
+                <div className={`w-2 h-2 rounded-sm ${showSizeMenu ? 'bg-lime-200' : 'bg-lime-300'}`}></div>
+              </div>
+              <div className="flex gap-0.5">
+                <div className={`w-2 h-2 rounded-sm ${showSizeMenu ? 'bg-white/60' : 'bg-lime-200'}`}></div>
+                <div className={`w-2 h-2 rounded-sm ${showSizeMenu ? 'bg-white/60' : 'bg-lime-200'}`}></div>
+              </div>
             </button>
             {/* 刷新按鈕 */}
             <button onClick={handleRefresh} disabled={refreshing}
-              className="flex items-center justify-center rounded-2xl shadow-lg border border-lime-100 bg-white text-lime-600 active:scale-90 transition-all disabled:opacity-40"
-              style={{width:'52px',height:'52px'}}
-              title="重新整理商品">
-              <Icons.RefreshCw size={20} className={refreshing ? 'animate-spin text-lime-400' : ''} />
+              className="flex flex-col items-center justify-center rounded-2xl shadow-lg border border-lime-100 bg-white text-lime-600 active:scale-90 transition-all disabled:opacity-40 gap-0.5"
+              style={{width:'52px',height:'52px'}} title="重新整理">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={`w-5 h-5 ${refreshing ? 'animate-spin text-lime-400' : 'text-lime-600'}`}>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M3 21v-5h5"/>
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+              </svg>
+              <span className="text-lime-500 font-black leading-none" style={{fontSize:'7px'}}>重整</span>
             </button>
           </div>
           <BottomNav active={showSearch ? 'search' : 'home'} onSearchClick={()=>{setShowSearch(true);setTimeout(()=>searchInputRef.current?.focus(),80);}} />
@@ -1906,10 +1940,22 @@
                       {['male','female'].map(g => <label key={g} className="flex items-center gap-2"><input type="radio" name="gender" value={g} checked={formData.gender===g} onChange={e=>setFormData({...formData,gender:e.target.value})} /><span className="text-sm">{g==='male'?'男':'女'}</span></label>)}
                     </div>
                   </div>
-                  <div><label className="text-xs text-gray-500 block mb-1">生日</label>
+                  <div><label className="text-xs text-gray-500 block mb-1">生日 <span className="text-red-400 font-bold">*</span></label>
                     {user.birthday && !needsRegistration
-                      ? <div className="w-full p-2 border rounded-lg bg-gray-100 text-gray-500 text-sm flex items-center gap-2">🎂 {user.birthday} <span className="text-xs text-gray-400 ml-auto">（生日填寫後不可修改）</span></div>
-                      : <><input type="date" value={formData.birthday||''} onChange={e=>setFormData({...formData,birthday:e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50" /><p className="text-xs text-lime-600 mt-1">*填寫生日可獲得專屬生日禮（填寫後不可修改）</p></>
+                      ? <div className="w-full p-2 border rounded-lg bg-gray-100 text-gray-500 text-sm flex items-center gap-2">🎂 {user.birthday} <span className="text-xs text-gray-400 ml-auto">（已鎖定，不可修改）</span></div>
+                      : <>
+                          {needsRegistration && (
+                            <div className="mb-2 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                              <span className="text-amber-500 text-base flex-shrink-0">⚠️</span>
+                              <div>
+                                <div className="text-xs font-bold text-amber-700">生日填寫後不可修改</div>
+                                <div className="text-xs text-amber-600 mt-0.5">請確認填寫正確，生日當月可領取專屬生日禮優惠券！</div>
+                              </div>
+                            </div>
+                          )}
+                          <input type="date" value={formData.birthday||''} onChange={e=>setFormData({...formData,birthday:e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50" />
+                          {!needsRegistration && <p className="text-xs text-lime-600 mt-1">⚠️ 生日填寫後不可修改，請確認後再儲存</p>}
+                        </>
                     }
                   </div>
                   <div>
