@@ -10,7 +10,7 @@
   <script src="https://unpkg.com/history@5/umd/history.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-router@6.3.0/umd/react-router.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js" crossorigin></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -77,7 +77,7 @@
   <style>
     @keyframes il-spin { to { transform: rotate(360deg); } }
   </style>
-  <script type="text/babel">
+  <script id="_src" type="text/plain">
     console.log('Step 1: Script started');
     if (typeof React === 'undefined') console.error('React missing');
     if (typeof ReactDOM === 'undefined') console.error('ReactDOM missing');
@@ -4841,5 +4841,23 @@
       document.getElementById('root').innerHTML = `<div style="padding:20px;color:red;">啟動失敗: ${err.message}</div>`;
     }
   </script>
+<script>
+(function(){
+  var src = document.getElementById('_src').textContent;
+  try {
+    var out = Babel.transform(src, {presets:['react']});
+    var s = document.createElement('script');
+    s.textContent = out.code;
+    document.head.appendChild(s);
+  } catch(e) {
+    var d = document.getElementById('error-log');
+    var c = document.getElementById('error-content');
+    d.style.display='block';
+    c.innerHTML='<div><strong style="font-size:15px">⚠️ Babel 解析錯誤：</strong><br><br><pre style="white-space:pre-wrap;font-size:12px;color:#ffff99;background:rgba(0,0,0,0.4);padding:12px;border-radius:8px;margin-top:8px">'+(e.message||e+'').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre><p style="font-size:11px;color:#fcc;margin-top:8px">請截圖此錯誤回報給開發者</p></div>';
+    console.error('Babel transform failed:',e);
+  }
+})();
+</script>
+
 </body>
 </html>
