@@ -325,7 +325,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.07</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.08</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -421,15 +421,26 @@
                   </div>
                 : <div className="flex items-center justify-center h-full text-4xl opacity-20">🛍️</div>
             }
-            {product.isOnSale && <div className="absolute bottom-2 right-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-md tracking-wide">SALE</div>}
             {totalStock <= 0 && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">售完</span></div>}
+            {totalStock > 0 && (() => {
+              const hasDis = product.originalPrice > 0 && product.originalPrice > product.price;
+              const pct = hasDis ? Math.round(product.price / product.originalPrice * 10) : null;
+              const isWhole = hasDis && Number.isInteger(pct) && pct >= 1 && pct <= 9;
+              if (hasDis) return (
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-lg">
+                  {isWhole ? `${pct}折` : `${Math.round(product.price/product.originalPrice*100)}折`}
+                </div>
+              );
+              if (product.isOnSale) return <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-md tracking-wide">SALE</div>;
+              return null;
+            })()}
             {totalStock > 0 && <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm">庫存: {totalStock}</div>}
           </div>
           <div className="p-3">
             <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-lime-600">{product.name}</h3>
-            <div className="mt-2 flex items-baseline gap-2">
+            <div className="mt-2 flex items-baseline gap-2 flex-wrap">
               <span className="text-lg font-black text-lime-600">NT${product.price}</span>
-              {product.originalPrice && <span className="text-xs text-gray-400 line-through">NT${product.originalPrice}</span>}
+              {product.originalPrice > 0 && product.originalPrice > product.price && <span className="text-xs text-gray-400 line-through">NT${product.originalPrice}</span>}
             </div>
           </div>
         </Link>
@@ -572,6 +583,16 @@
     const Home = () => {
       const [refreshing, setRefreshing] = useState(false);
       const { settings, user, allProducts, allCategories, setAllProducts, setAllCategories, setSettings } = useAppContext();
+      // 每次進入首頁刷新庫存（使用 visibilitychange 避免浪費請求）
+      React.useEffect(() => {
+        const refresh = () => {
+          if (!document.hidden) {
+            api.fetchProducts().then(p => { if (p && Array.isArray(p)) setAllProducts(p); });
+          }
+        };
+        document.addEventListener('visibilitychange', refresh);
+        return () => document.removeEventListener('visibilitychange', refresh);
+      }, []);
       const handleRefresh = async () => {
         if (refreshing) return;
         setRefreshing(true);
@@ -1100,7 +1121,7 @@
     // 頁面：購物車
     // =====================================================
     const Cart = () => {
-      const { cart, updateQuantity, clearCart, cartTotal, user, setUser, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed } = useAppContext();
+      const { cart, updateQuantity, clearCart, cartTotal, user, setUser, settings, shippingFee, cvsFee, isFreeShipping, pointsUsed, setAllProducts, allProducts } = useAppContext();
       const { showAlert, showConfirm } = useDialog();
       const navigate = useNavigate();
       const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1118,6 +1139,21 @@
 
       const allVirtual = cart.length > 0 && cart.every(i => i.isVirtual);
 
+      // 進入購物車頁時自動刷新庫存
+      React.useEffect(() => {
+        api.fetchProducts().then(p => { if (p) setAllProducts(p); }).catch(()=>{});
+      }, []);
+
+      // 進入購物車/結帳頁時自動刷新庫存
+      React.useEffect(() => {
+        api.fetchProducts().then(p => { if (p && Array.isArray(p)) setAllProducts(p); });
+      }, []);
+
+      // 若購物車包含不允許優惠券商品，自動清除已選優惠券
+      React.useEffect(() => {
+        if (cartHasNoCouponItem && selectedCoupon) setSelectedCoupon(null);
+      }, [cartHasNoCouponItem]);
+
       // 切換取貨方式時自動設定預設付款方式
       React.useEffect(() => {
         if (allVirtual) { setDeliveryMethod('virtual'); setPaymentMethod('transfer'); return; }
@@ -1126,7 +1162,9 @@
         else setPaymentMethod('transfer'); // 宅配只有轉帳
       }, [deliveryMethod, allVirtual]);
 
-      let discountAmount = selectedCoupon ? selectedCoupon.value : 0;
+      const hasSaleItem = cart.some(i => i.originalPrice > 0 && i.originalPrice > i.price);
+      const couponBlocked = settings?.saleNoCoupon === 'true' && hasSaleItem;
+      let discountAmount = (selectedCoupon && !couponBlocked) ? selectedCoupon.value : 0;
       // 依取貨方式套用對應運費
       const currentShippingFee = deliveryMethod === 'shipping' ? (isFreeShipping ? 0 : shippingFee)
                                 : deliveryMethod === 'cvs' ? (isFreeShipping ? 0 : cvsFee)
@@ -1134,8 +1172,15 @@
       const total = cartTotal + currentShippingFee - discountAmount;
       const pointsEarned = Math.floor(cartTotal / (settings?.pointRatio || 100));
       const freeShippingDiff = (settings?.freeShippingThreshold || 1000) - cartTotal;
-      const availableCoupons = (user?.coupons||[]).filter(c => {
-        if (c.usedAt) return false; // 已使用的券不顯示
+      // 若購物車中有不允許使用優惠券的商品，禁止使用優惠券
+      const cartHasNoCouponItem = cart.some(item => {
+        const prod = allProducts.find(p => String(p.id) === String(item.id));
+        if (prod && prod.allowCoupon === false) return true;
+        if (settings?.saleNoCoupon === 'true' && item.originalPrice > 0 && item.originalPrice > item.price) return true;
+        return false;
+      });
+      const availableCoupons = cartHasNoCouponItem ? [] : (user?.coupons||[]).filter(c => {
+        if (c.usedAt) return false;
         const today = new Date().toISOString().split('T')[0];
         return c.expiry >= today && cartTotal >= c.minSpend;
       });
@@ -1158,6 +1203,20 @@
       const handleSubmit = async () => {
         if (cart.length === 0) return;
         if (!user?.phone) { showAlert('請先至會員中心填寫手機號碼'); navigate('/profile'); return; }
+        // 送出前即時檢查庫存
+        try {
+          const stockCheck = await api.post('checkStock', {
+            items: cart.filter(i => !i.isRedemption).map(i => ({ id: i.id, name: i.name, selectedVariant: i.selectedVariant, quantity: i.quantity }))
+          });
+          if (!stockCheck?.ok) {
+            showAlert('庫存不足，請更新購物車
+' + (stockCheck?.error || ''));
+            // Refresh products and remove out-of-stock items
+            const fresh = await api.fetchProducts();
+            if (fresh) setAllProducts(fresh);
+            return;
+          }
+        } catch(err) { /* 網路問題不阻擋，由 GAS createOrder 再次驗證 */ }
         if (!allVirtual) {
           if (deliveryMethod==='cvs' && (!cvsType || !formData.storeName)) { showAlert('請選擇超商並填寫門市名稱'); return; }
           if (deliveryMethod==='cvs' && formData.storeName && (!/[\u4e00-\u9fff]/.test(formData.storeName) || (formData.storeName.match(/[\u4e00-\u9fff]/g)||[]).length < 2)) { showAlert('門市名稱至少需2個中文字（例：全家信義店）'); return; }
@@ -1185,7 +1244,29 @@
           );
           if (!ok) return;
         }
+        if (couponBlocked && selectedCoupon) { setSelectedCoupon(null); }
         setIsSubmitting(true);
+        // 下單前即時庫存檢查
+        try {
+          const freshProds = await api.fetchProducts();
+          if (freshProds && Array.isArray(freshProds)) {
+            for (const item of cart) {
+              const fp = freshProds.find(p => String(p.id) === String(item.id));
+              if (!fp) { showAlert(`⚠️ 商品「${item.name}」已下架`); setIsSubmitting(false); return; }
+              const variants = fp.variants || [];
+              if (variants.length > 0 && item.selectedVariant) {
+                let stocks = {};
+                if (fp.variantStocksJson) { try { stocks = JSON.parse(fp.variantStocksJson); } catch(e) {} }
+                else { variants.forEach((v,i) => { stocks[v] = Number(String(fp.stock||'0').split(',')[i])||0; }); }
+                const avail = stocks[item.selectedVariant] || 0;
+                if (avail < item.quantity) { showAlert(`⚠️ 「${item.name}（${item.selectedVariant}）」庫存不足，僅剩 ${avail} 件`); setIsSubmitting(false); return; }
+              } else {
+                const avail = Number(fp.stock) || 0;
+                if (avail < item.quantity) { showAlert(`⚠️ 「${item.name}」庫存不足，僅剩 ${avail} 件`); setIsSubmitting(false); return; }
+              }
+            }
+          }
+        } catch(stockErr) { /* 庫存檢查失敗不阻擋，GAS 仍會再次驗證 */ }
         const orderId = generateOrderId();
         const order = {
           orderId, user: { lineId:user.lineId, name:formData.name||user.name, phone:formData.phone||user.phone,
@@ -1255,7 +1336,9 @@
         setIsSubmitting(false);
         if (paymentMethod === 'transfer') {
           setCompletedOrderId(orderId);
-          setShowTransferModal(true);
+          // 訂單成立後即時刷新商品庫存
+        api.fetchProducts().then(p => { if (p) setAllProducts(p); }).catch(()=>{});
+        setShowTransferModal(true);
         } else {
           showAlert('🎉 訂單已成立！');
           navigate('/orders');
@@ -1364,13 +1447,33 @@
                 <Icons.Truck className="w-5 h-5" /><span>再買 <span className="font-bold">NT${freeShippingDiff}</span> 即可享免運費！</span>
               </div>
             )}
-            {cart.map((item,idx) => (
-              <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm flex gap-4">
+            {cart.map((item,idx) => {
+              // 即時庫存狀態
+              const freshProd = allProducts.find(p => String(p.id) === String(item.id));
+              let availStock = Infinity;
+              if (freshProd) {
+                if (item.selectedVariant && freshProd.variants && freshProd.variants.length > 0) {
+                  let stocks = {};
+                  if (freshProd.variantStocksJson) { try { stocks = JSON.parse(freshProd.variantStocksJson); } catch(e) {} }
+                  else { (freshProd.variants||[]).forEach((v,i) => { stocks[v] = Number(String(freshProd.stock||'0').split(',')[i])||0; }); }
+                  availStock = stocks[item.selectedVariant] || 0;
+                } else {
+                  availStock = Number(freshProd.stock) || 0;
+                }
+              }
+              const isStockWarn = !item.isRedemption && availStock < item.quantity;
+              return (
+              <div key={idx} className={`bg-white p-4 rounded-2xl shadow-sm flex gap-4 border-2 ${isStockWarn ? 'border-red-200' : 'border-transparent'}`}>
                 <img src={item.images?.[0]} className="w-20 h-20 rounded-lg object-cover bg-gray-100" referrerPolicy="no-referrer" />
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <h3 className="font-bold text-gray-800 line-clamp-1">{item.name}</h3>
                     <div className="text-xs text-gray-500 mt-1">{item.selectedVariant} {item.isRedemption && <span className="text-red-500 font-bold">(兌換品)</span>}</div>
+                    {isStockWarn && (
+                      <div className="text-xs text-red-500 font-bold mt-1">
+                        {availStock <= 0 ? '已售完，請移除' : `庫存僅剩 ${availStock} 件，請調整數量`}
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-between items-end">
                     <div className="font-bold text-lime-600">{item.isRedemption ? `${item.redeemPoints} 點` : `NT$${item.price}`}</div>
@@ -1382,10 +1485,15 @@
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
               <h3 className="font-bold text-gray-800">使用優惠券</h3>
-              {availableCoupons.length > 0 ? (
+              {cartHasNoCouponItem ? (
+                <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                  購物車含折扣商品，不可同時使用優惠券
+                </div>
+              ) : availableCoupons.length > 0 ? (
                 <div className="space-y-2">
                   {availableCoupons.map(coupon => (
                     <label key={coupon.id} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer ${selectedCoupon?.id===coupon.id?'border-lime-500 bg-lime-50':'border-gray-200'}`}>
@@ -2490,7 +2598,7 @@
     const ProductDetail = () => {
       const { id } = useParams();
       const navigate = useNavigate();
-      const { addToCart, cart, allProducts, user, settings } = useAppContext();
+      const { addToCart, cart, allProducts, setAllProducts, user, settings } = useAppContext();
       const { showAlert } = useDialog();
       const [product, setProduct] = useState(null);
       const [loading, setLoading] = useState(true);
@@ -2577,10 +2685,33 @@
       // 購物車顯示標籤
       const comboLabel = comboComplete ? vGroups.map(g => selectedSpecs[g.name]).join(' / ') : null;
 
-      const handleAddToCart = () => {
+      const handleAddToCart = async () => {
         if (hasVariants && !comboComplete) { showAlert('請選擇所有規格'); return; }
-        if (hasVariants && comboStock <= 0) { showAlert('此規格已售完'); return; }
-        if (!hasVariants && getTotalStock(product) <= 0) { showAlert('商品已售完'); return; }
+        // 加入購物車前即時檢查庫存
+        try {
+          const fresh = await api.fetchProducts();
+          if (fresh && Array.isArray(fresh)) {
+            setAllProducts(fresh);
+            const freshProd = fresh.find(p => String(p.id) === String(product.id));
+            if (freshProd) {
+              const sel = comboLabel || null;
+              if (sel && freshProd.variants) {
+                const vi = freshProd.variants.indexOf(sel);
+                const stk = vi >= 0 ? (Number(String(freshProd.stock).split(',')[vi])||0) : 0;
+                if (stk <= 0) { showAlert('此規格已售完，請重新選擇'); return; }
+              } else {
+                const tot = String(freshProd.stock||'0').split(',').map(s=>Number(s)||0).reduce((a,b)=>a+b,0);
+                if (tot <= 0) { showAlert('商品已售完'); return; }
+              }
+              // Update local product state with fresh data
+              setProduct(prev => ({...prev, stock: freshProd.stock, variantStocksJson: freshProd.variantStocksJson}));
+            }
+          }
+        } catch(err) {
+          // 網路問題：繼續使用快取庫存，由 GAS 最終驗證
+          if (hasVariants && comboStock <= 0) { showAlert('此規格已售完'); return; }
+          if (!hasVariants && getTotalStock(product) <= 0) { showAlert('商品已售完'); return; }
+        }
         addToCart(product, 1, comboLabel || null);
         setAddedAnim(true);
         setTimeout(() => setAddedAnim(false), 600);
@@ -2690,9 +2821,12 @@
                 )}
               </button>
             </div>
-            {product.originalPrice > product.price && (
-              <div className="absolute bottom-4 right-4 bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-xl shadow-lg tracking-wide">SALE</div>
-            )}
+            {product.originalPrice > product.price && (() => {
+              const pct = Math.round(product.price / product.originalPrice * 10);
+              const isWhole = Number.isInteger(pct) && pct >= 1 && pct <= 9;
+              const label = isWhole ? `${pct}折` : `${Math.round(product.price/product.originalPrice*100)}折`;
+              return <div className="absolute bottom-4 right-4 bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow-lg tracking-wide">{label}</div>;
+            })()}
           </div>
 
           {/*商品資訊卡*/}
@@ -3473,6 +3607,19 @@
                       </button>
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-2">優惠券使用</label>
+                      <button onClick={()=>setEditProduct({...editProduct,allowCoupon:editProduct.allowCoupon===false?true:false})}
+                        className={`w-full flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all ${editProduct.allowCoupon===false?'border-orange-400 bg-orange-50 text-orange-600':'border-gray-200 bg-gray-50 text-gray-400'}`}>
+                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${editProduct.allowCoupon===false?'border-orange-500 bg-orange-500':'border-gray-300'}`}>
+                          {editProduct.allowCoupon===false && <span className="text-white text-xs font-black">✓</span>}
+                        </span>
+                        {editProduct.allowCoupon===false ? '禁止使用優惠券' : '允許使用優惠券'}
+                      </button>
+                    </div>
+                    <div></div>
+                  </div>
                 </div>
                 <div className="p-4 flex gap-3 sticky bottom-0 bg-white border-t">
                   <button onClick={() => setEditProduct(null)} className="flex-1 py-3 border rounded-xl font-bold text-gray-500">取消</button>
@@ -3608,7 +3755,7 @@
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
-              <span className="ml-auto text-lime-200 text-xs">V2.07</span>
+              <span className="ml-auto text-lime-200 text-xs">V2.08</span>
             </div>
             {/*12格功能選單*/}
             <div className="grid grid-cols-4 gap-1.5">
@@ -3994,7 +4141,7 @@
                 {/*商品管理*/}
                 {tab==='products' && (
                   <div className="space-y-4">
-                    <button onClick={()=>setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',brandCategoryId:'',isOnSale:false,isVirtual:false,variantGroups:[],variantStocks:{} })}
+                    <button onClick={()=>setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',brandCategoryId:'',isOnSale:false,isVirtual:false,allowCoupon:true,variantGroups:[],variantStocks:{} })}
                       className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-md flex items-center justify-center gap-2">
                       <Icons.Plus className="w-5 h-5" /> 新增商品
                     </button>
@@ -4262,11 +4409,24 @@
                       {key:'storeAddress',label:'門市地址',type:'text'},
                       {key:'storePhone',label:'門市電話',type:'text'},
                       {key:'marqueeText',label:'跑馬燈文字',type:'text'},
+                      {key:'saleNoCoupon',label:'折扣商品（有原價的商品）不可使用優惠券',type:'toggle'},
                       {key:'carouselSeconds',label:'🖼️ 商品圖片輪播秒數（預設4秒）',type:'number'},
                     ].map(f => (
                       <div key={f.key}>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">{f.label}</label>
-                        <input type={f.type} value={adminSettings[f.key]||''} onChange={e=>setAdminSettings({...adminSettings,[f.key]:f.type==='number'?Number(e.target.value):e.target.value})} className="w-full p-2 border rounded-lg" />
+                        {f.type === 'toggle' ? (
+                          <button onClick={() => setAdminSettings({...adminSettings, [f.key]: adminSettings[f.key]==='true' ? 'false' : 'true'})}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${adminSettings[f.key]==='true' ? 'border-lime-500 bg-lime-50' : 'border-gray-200 bg-gray-50'}`}>
+                            <div className={`w-12 h-6 rounded-full transition-colors flex-shrink-0 flex items-center ${adminSettings[f.key]==='true' ? 'bg-lime-500' : 'bg-gray-300'}`}>
+                              <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform mx-0.5 ${adminSettings[f.key]==='true' ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                            </div>
+                            <span className={`text-sm font-bold ${adminSettings[f.key]==='true' ? 'text-lime-700' : 'text-gray-500'}`}>{f.label}</span>
+                          </button>
+                        ) : (
+                          <>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">{f.label}</label>
+                            <input type={f.type} value={adminSettings[f.key]||''} onChange={e=>setAdminSettings({...adminSettings,[f.key]:f.type==='number'?Number(e.target.value):e.target.value})} className="w-full p-2 border rounded-lg" />
+                          </>
+                        )}
                       </div>
                     ))}
                     {/*字體大小設定*/}
