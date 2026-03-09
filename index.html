@@ -1209,8 +1209,7 @@
             items: cart.filter(i => !i.isRedemption).map(i => ({ id: i.id, name: i.name, selectedVariant: i.selectedVariant, quantity: i.quantity }))
           });
           if (!stockCheck?.ok) {
-            showAlert('庫存不足，請更新購物車
-' + (stockCheck?.error || ''));
+            showAlert('庫存不足，請更新購物車\n' + (stockCheck?.error || ''));
             // Refresh products and remove out-of-stock items
             const fresh = await api.fetchProducts();
             if (fresh) setAllProducts(fresh);
