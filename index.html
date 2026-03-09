@@ -424,8 +424,9 @@
             {totalStock <= 0 && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">售完</span></div>}
             {totalStock > 0 && (() => {
               const hasDis = product.originalPrice > 0 && product.originalPrice > product.price;
-              if (hasDis) {
-                return <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-lg">{(p => p % 10 === 0 ? `${p/10}折` : `${p}折`)(Math.round(product.price/product.originalPrice*100))}</div>;
+              if (hasDis && settings?.discountBadgeCard === 'true') {
+                const pos = settings?.discountBadgeCardPos === 'right' ? 'top-2 right-2' : 'top-2 left-2';
+                return <div className={`absolute ${pos} bg-red-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-lg`}>{(p => p % 10 === 0 ? `${p/10}折` : `${p}折`)(Math.round(product.price/product.originalPrice*100))}</div>;
               }
               if (product.isOnSale) return <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-md tracking-wide">SALE</div>;
               return null;
@@ -434,7 +435,9 @@
           </div>
           <div className="p-3">
             <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-lime-600">
-              {product.name}
+              {settings?.discountBadgeName === 'true' && product.originalPrice > 0 && product.originalPrice > product.price && (
+                <span className="inline-block bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded mr-1.5 align-middle">{(p => p % 10 === 0 ? `${p/10}折` : `${p}折`)(Math.round(product.price/product.originalPrice*100))}</span>
+              )}{product.name}
             </h3>
             <div className="mt-2 flex items-baseline gap-2 flex-wrap">
               <span className="text-lg font-black text-lime-600">NT${product.price}</span>
@@ -2840,18 +2843,17 @@
                 )}
               </button>
             </div>
-            {product.originalPrice > product.price && (
-              <div className="absolute bottom-4 right-4 bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow-lg tracking-wide">
-                {(p => p % 10 === 0 ? `${p/10}折` : `${p}折`)(Math.round(product.price/product.originalPrice*100))}
-              </div>
-            )}
+            {product.originalPrice > product.price && settings?.discountBadgeDetail === 'true' && (() => {
+              const pos = settings?.discountBadgeDetailPos === 'left' ? 'bottom-4 left-4' : 'bottom-4 right-4';
+              return <div className={`absolute ${pos} bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow-lg tracking-wide`}>{(p => p % 10 === 0 ? `${p/10}折` : `${p}折`)(Math.round(product.price/product.originalPrice*100))}</div>;
+            })()}
           </div>
 
           {/*商品資訊卡*/}
           <div className="p-5 -mt-6 bg-white rounded-t-3xl relative z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
             <div className="flex justify-between items-start mb-1">
               <h1 className="text-xl font-bold text-gray-800 flex-1 pr-2">
-                {product.originalPrice > 0 && product.originalPrice > product.price && (
+                {settings?.discountBadgeDetailName === 'true' && product.originalPrice > 0 && product.originalPrice > product.price && (
                   <span className="inline-block bg-red-500 text-white text-xs font-black px-2 py-0.5 rounded mr-2 align-middle">{(p => p % 10 === 0 ? `${p/10}折` : `${p}折`)(Math.round(product.price/product.originalPrice*100))}</span>
                 )}{product.name}
               </h1>
@@ -4432,6 +4434,12 @@
                       {key:'storePhone',label:'門市電話',type:'text'},
                       {key:'marqueeText',label:'跑馬燈文字',type:'text'},
                       {key:'saleNoCoupon',label:'折扣商品（有原價的商品）不可使用優惠券',type:'toggle'},
+                      {key:'discountBadgeCard',label:'首頁商品圖片上顯示折數標籤',type:'toggle'},
+                      {key:'discountBadgeCardPos',label:'首頁折數標籤位置（left=左上 / right=右上）',type:'text'},
+                      {key:'discountBadgeDetail',label:'商品頁面圖片上顯示折數標籤',type:'toggle'},
+                      {key:'discountBadgeDetailPos',label:'商品頁折數標籤位置（left=左下 / right=右下）',type:'text'},
+                      {key:'discountBadgeName',label:'首頁商品名稱左邊顯示折數（保留空白）',type:'toggle'},
+                      {key:'discountBadgeDetailName',label:'商品頁面名稱左邊顯示折數',type:'toggle'},
                       {key:'carouselSeconds',label:'🖼️ 商品圖片輪播秒數（預設4秒）',type:'number'},
                     ].map(f => (
                       <div key={f.key}>
