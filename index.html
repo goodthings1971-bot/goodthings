@@ -3119,7 +3119,7 @@
     // 頁面：管理員後台 (Bug Fixed)
     // =====================================================
     const AdminDashboard = () => {
-      const { user, allCategories, setAllCategories } = useAppContext();
+      const { user, allCategories, setAllCategories, setSettings } = useAppContext();
       const { showAlert, showConfirm } = useDialog();
       const navigate = useNavigate();
       const [orders, setOrders] = useState([]);
@@ -4505,7 +4505,14 @@
                       if (!await showConfirm('確定要更新設定嗎？')) { btn.disabled = false; btn.textContent = '儲存設定'; return; }
                       try {
                         const r = await api.post('updateSettings', { adminId:user.lineId, settings:adminSettings });
-                        if (r?.success) { btn.textContent = '✅ 已儲存！'; setTimeout(()=>{ btn.disabled=false; btn.textContent='儲存設定'; }, 2000); showAlert('設定已更新'); }
+                        if (r?.success) {
+                          btn.textContent = '✅ 已儲存！';
+                          setTimeout(()=>{ btn.disabled=false; btn.textContent='儲存設定'; }, 2000);
+                          // 立即更新全域 settings context，讓前台即時生效
+                          const fresh = await api.fetchSettings();
+                          if (fresh && !fresh.error) { setAdminSettings(fresh); setSettings(fresh); }
+                          showAlert('設定已更新');
+                        }
                         else { showAlert('更新失敗：' + (r?.error||'')); btn.disabled = false; btn.textContent = '儲存設定'; }
                       } catch(e) { showAlert('更新失敗'); btn.disabled = false; btn.textContent = '儲存設定'; }
                     }} className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-lime-200 active:scale-95 transition-all disabled:opacity-60">
