@@ -424,20 +424,24 @@
             {totalStock <= 0 && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-full">售完</span></div>}
             {totalStock > 0 && (() => {
               const hasDis = product.originalPrice > 0 && product.originalPrice > product.price;
-              const pct = hasDis ? Math.round(product.price / product.originalPrice * 10) : null;
-              const isWhole = hasDis && Number.isInteger(pct) && pct >= 1 && pct <= 9;
-              if (hasDis) return (
-                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-lg">
-                  {isWhole ? `${pct}折` : `${Math.round(product.price/product.originalPrice*100)}折`}
-                </div>
-              );
+              if (hasDis) {
+                const pct = Math.round(product.price / product.originalPrice * 100);
+                return <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow-lg">{pct}折</div>;
+              }
               if (product.isOnSale) return <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-md tracking-wide">SALE</div>;
               return null;
             })()}
             {totalStock > 0 && <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm">庫存: {totalStock}</div>}
           </div>
           <div className="p-3">
-            <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-lime-600">{product.name}</h3>
+            <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[40px] group-hover:text-lime-600 flex items-start gap-1.5 flex-wrap">
+              {product.originalPrice > 0 && product.originalPrice > product.price && (
+                <span className="inline-flex items-center bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5">
+                  {Math.round(product.price/product.originalPrice*100)}折
+                </span>
+              )}
+              <span>{product.name}</span>
+            </h3>
             <div className="mt-2 flex items-baseline gap-2 flex-wrap">
               <span className="text-lg font-black text-lime-600">NT${product.price}</span>
               {product.originalPrice > 0 && product.originalPrice > product.price && <span className="text-xs text-gray-400 line-through">NT${product.originalPrice}</span>}
@@ -1976,6 +1980,21 @@
       const [isEditing, setIsEditing] = useState(false);
       const [formData, setFormData] = useState({});
       const [isLotterySpinning, setIsLotterySpinning] = useState(false);
+      const DRAW_TIPS = [
+        '每日抽獎，運氣爆棚！',
+        '今天的好運，只屬於你 ✨',
+        '點一下，好事就來！',
+        '幸運總是偏愛勇於嘗試的人',
+        '說不定今天就是你的幸運日',
+        '每天一次，累積好運能量',
+        '抽完獎記得去逛逛新品喔',
+        '好券在手，說走就走！',
+        '美好的事，從每日好運開始',
+        '今日份好運，請準時簽收',
+        '手氣這種東西，試了才知道',
+        '別讓今天的好運白白溜走',
+      ];
+      const [drawTipIdx, setDrawTipIdx] = React.useState(() => Math.floor(Math.random() * 12));
       const [showDrawer, setShowDrawer] = useState(false);
       useEffect(() => { if (user) setFormData(user); }, [user]);
       const handleSave = async () => {
@@ -2016,7 +2035,11 @@
             setUser(prev => ({ ...prev, coupons: [...(prev.coupons||[]), res.coupon], lastDrawDate: todayTW }));
           } else { showAlert(res?.error || '抽獎失敗'); }
         } catch(e) { showAlert('發生錯誤，請稍後再試'); }
-        finally { setIsLotterySpinning(false); }
+        finally {
+          setIsLotterySpinning(false);
+          // 每次點擊後換下一條提示，循環不重複
+          setDrawTipIdx(prev => (prev + 1) % 12);
+        }
       };
       if (!user) return null;
       const isAdmin = ADMIN_IDS.includes(user.lineId);
@@ -2124,6 +2147,9 @@
                   <Icons.Gift className={`w-6 h-6 ${isLotterySpinning?'animate-spin':''}`} />
                   <span className="font-bold text-xs">{canDraw?'每日好運':'今日已抽'}</span>
                 </button>
+                <div className="text-center text-[10px] text-gray-400 leading-tight px-1">
+                  {DRAW_TIPS[drawTipIdx % DRAW_TIPS.length]}
+                </div>
               </div>
               <div className="flex-[2] bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-2">
@@ -2820,12 +2846,11 @@
                 )}
               </button>
             </div>
-            {product.originalPrice > product.price && (() => {
-              const pct = Math.round(product.price / product.originalPrice * 10);
-              const isWhole = Number.isInteger(pct) && pct >= 1 && pct <= 9;
-              const label = isWhole ? `${pct}折` : `${Math.round(product.price/product.originalPrice*100)}折`;
-              return <div className="absolute bottom-4 right-4 bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow-lg tracking-wide">{label}</div>;
-            })()}
+            {product.originalPrice > product.price && (
+              <div className="absolute bottom-4 right-4 bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow-lg tracking-wide">
+                {Math.round(product.price / product.originalPrice * 100)}折
+              </div>
+            )}
           </div>
 
           {/*商品資訊卡*/}
