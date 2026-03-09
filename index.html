@@ -1150,10 +1150,7 @@
         api.fetchProducts().then(p => { if (p && Array.isArray(p)) setAllProducts(p); });
       }, []);
 
-      // 若購物車包含不允許優惠券商品，自動清除已選優惠券
-      React.useEffect(() => {
-        if (cartHasNoCouponItem && selectedCoupon) setSelectedCoupon(null);
-      }, [cartHasNoCouponItem]);
+
 
       // 切換取貨方式時自動設定預設付款方式
       React.useEffect(() => {
@@ -1165,6 +1162,19 @@
 
       const hasSaleItem = cart.some(i => i.originalPrice > 0 && i.originalPrice > i.price);
       const couponBlocked = settings?.saleNoCoupon === 'true' && hasSaleItem;
+      // 若購物車中有不允許使用優惠券的商品，禁止使用優惠券
+      const cartHasNoCouponItem = cart.some(item => {
+        const prod = allProducts.find(p => String(p.id) === String(item.id));
+        if (prod && prod.allowCoupon === false) return true;
+        if (settings?.saleNoCoupon === 'true' && item.originalPrice > 0 && item.originalPrice > item.price) return true;
+        return false;
+      });
+
+      // 若購物車包含不允許優惠券商品，自動清除已選優惠券
+      React.useEffect(() => {
+        if (cartHasNoCouponItem && selectedCoupon) setSelectedCoupon(null);
+      }, [cartHasNoCouponItem]);
+
       let discountAmount = (selectedCoupon && !couponBlocked) ? selectedCoupon.value : 0;
       // 依取貨方式套用對應運費
       const currentShippingFee = deliveryMethod === 'shipping' ? (isFreeShipping ? 0 : shippingFee)
@@ -1173,13 +1183,6 @@
       const total = cartTotal + currentShippingFee - discountAmount;
       const pointsEarned = Math.floor(cartTotal / (settings?.pointRatio || 100));
       const freeShippingDiff = (settings?.freeShippingThreshold || 1000) - cartTotal;
-      // 若購物車中有不允許使用優惠券的商品，禁止使用優惠券
-      const cartHasNoCouponItem = cart.some(item => {
-        const prod = allProducts.find(p => String(p.id) === String(item.id));
-        if (prod && prod.allowCoupon === false) return true;
-        if (settings?.saleNoCoupon === 'true' && item.originalPrice > 0 && item.originalPrice > item.price) return true;
-        return false;
-      });
       const availableCoupons = cartHasNoCouponItem ? [] : (user?.coupons||[]).filter(c => {
         if (c.usedAt) return false;
         const today = new Date().toISOString().split('T')[0];
@@ -1204,19 +1207,7 @@
       const handleSubmit = async () => {
         if (cart.length === 0) return;
         if (!user?.phone) { showAlert('請先至會員中心填寫手機號碼'); navigate('/profile'); return; }
-        // 送出前即時檢查庫存
-        try {
-          const stockCheck = await api.post('checkStock', {
-            items: cart.filter(i => !i.isRedemption).map(i => ({ id: i.id, name: i.name, selectedVariant: i.selectedVariant, quantity: i.quantity }))
-          });
-          if (!stockCheck?.ok) {
-            showAlert('庫存不足，請更新購物車\n' + (stockCheck?.error || ''));
-            // Refresh products and remove out-of-stock items
-            const fresh = await api.fetchProducts();
-            if (fresh) setAllProducts(fresh);
-            return;
-          }
-        } catch(err) { /* 網路問題不阻擋，由 GAS createOrder 再次驗證 */ }
+        // 庫存於 setIsSubmitting 後的即時 fetchProducts 再次驗證
         if (!allVirtual) {
           if (deliveryMethod==='cvs' && (!cvsType || !formData.storeName)) { showAlert('請選擇超商並填寫門市名稱'); return; }
           if (deliveryMethod==='cvs' && formData.storeName && (!/[\u4e00-\u9fff]/.test(formData.storeName) || (formData.storeName.match(/[\u4e00-\u9fff]/g)||[]).length < 2)) { showAlert('門市名稱至少需2個中文字（例：全家信義店）'); return; }
