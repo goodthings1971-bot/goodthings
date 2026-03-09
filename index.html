@@ -398,7 +398,7 @@
     // 商品卡片（memo 化，避免不必要的重新渲染）
     // =====================================================
     const ProductCard = React.memo(({ product }) => {
-      const { allCategories } = useAppContext();
+      const { allCategories, settings } = useAppContext();
       // ✅ 計算總庫存（支援 "3,5" 格式）
       const totalStock = String(product.stock || '0').split(',').map(s => Number(s.trim()) || 0).reduce((a, b) => a + b, 0);
       // 品牌分類圖標優先，其次主分類圖標
