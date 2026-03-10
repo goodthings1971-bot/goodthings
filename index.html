@@ -326,7 +326,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.08</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.09</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -2860,36 +2860,36 @@
                       <div className="flex flex-wrap gap-2">
                         {grp.options.filter(o=>o).map(opt => {
                           const isSelected = selectedSpecs[grp.name] === opt;
-                          // 計算此選項是否無庫存（使用正確的 pipe key 格式）
+                          // 計算此選項是否無庫存
+                          // 規則：只有當「此選項在所有可能組合中庫存全為0」才 disable
+                          // 不因為目前選了某組合為0就 disable 此選項，避免跨規格互相鎖死
                           let outOfStock = false;
                           let optStock = null;
+                          const myIdx = vGroups.findIndex(g => g.name === grp.name);
                           if (isSingleGroup) {
-                            // 單組規格：key 直接是選項名稱
                             optStock = Number(vStocks[opt]) || 0;
                             outOfStock = optStock <= 0;
                           } else {
-                            // 多組規格：key 是 pipe-joined 組合
-                            const testCombo = {...selectedSpecs, [grp.name]: opt};
-                            const otherGroups = vGroups.filter(g => g.name !== grp.name);
-                            if (otherGroups.every(g => testCombo[g.name])) {
-                              const key = vGroups.map(g => testCombo[g.name] || '').join('|');
-                              optStock = Number(vStocks[key]) || 0;
-                              outOfStock = optStock <= 0;
-                            } else {
-                              const myIdx = vGroups.findIndex(g => g.name === grp.name);
-                              const allCombos = Object.keys(vStocks).filter(k => k.split('|')[myIdx] === opt);
-                              outOfStock = allCombos.length > 0 && allCombos.every(k => (Number(vStocks[k]) || 0) <= 0);
-                            }
+                            const allCombos = Object.keys(vStocks).filter(k => k.split('|')[myIdx] === opt);
+                            outOfStock = allCombos.length > 0 && allCombos.every(k => (Number(vStocks[k]) || 0) <= 0);
                           }
                           return (
                             <button key={opt}
                               disabled={outOfStock}
-                              onClick={() => !outOfStock && setSelectedSpecs(s => ({...s, [grp.name]: opt}))}
+                              onClick={() => {
+                                if (outOfStock) return;
+                                if (isSelected) {
+                                  // 點擊已選項目 → 取消選擇（清除此規格）
+                                  setSelectedSpecs(s => { const ns = {...s}; delete ns[grp.name]; return ns; });
+                                } else {
+                                  setSelectedSpecs(s => ({...s, [grp.name]: opt}));
+                                }
+                              }}
                               className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all relative ${
                                 outOfStock
                                   ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'
                                   : isSelected
-                                  ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
+                                  ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm ring-2 ring-lime-300'
                                   : 'border-gray-200 text-gray-600 active:scale-95'
                               }`}>
                               {outOfStock && <span className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="w-full h-px bg-gray-300 absolute" style={{transform:'rotate(135deg)'}}></span></span>}
@@ -2902,11 +2902,13 @@
                     </div>
                   );
                 })}
-                {/*組合選擇提示*/}
+                {/*組合選擇提示 & 庫存警示*/}
                 {comboComplete && (
-                  <div className="text-xs font-bold px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 bg-lime-50 text-lime-600 border border-lime-200">
+                  <div className={`text-xs font-bold px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 border ${comboStock === 0 ? 'bg-red-50 text-red-500 border-red-200' : 'bg-lime-50 text-lime-600 border-lime-200'}`}>
                     <span>已選：{comboLabel}</span>
-                    {comboStock > 0 && <><span>·</span><span>剩餘 {comboStock} 件</span></>}
+                    {comboStock === 0
+                      ? <><span>·</span><span>此規格庫存不足</span></>
+                      : comboStock > 0 && <><span>·</span><span>剩餘 {comboStock} 件</span></>}
                   </div>
                 )}
               </div>
@@ -3811,7 +3813,7 @@
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
-              <span className="ml-auto text-lime-200 text-xs">V2.08</span>
+              <span className="ml-auto text-lime-200 text-xs">V2.09</span>
             </div>
             {/*12格功能選單*/}
             <div className="grid grid-cols-4 gap-1.5">
