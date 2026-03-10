@@ -2829,8 +2829,8 @@
                   <span className="inline-block bg-red-500 text-white text-xs font-black px-2 py-0.5 rounded mr-2 align-middle">{(p => p % 10 === 0 ? `${p/10}折` : `${p}折`)(Math.round(product.price/product.originalPrice*100))}</span>
                 )}{product.name}
               </h1>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0 ${totalStock > 0 ? 'bg-lime-100 text-lime-700' : 'bg-red-100 text-red-600'}`}>
-                庫存: {totalStock}
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0 bg-lime-100 text-lime-700">
+                {totalStock > 0 ? `庫存: ${totalStock}` : '庫存查詢中'}
               </span>
             </div>
             <div className="flex items-baseline gap-2 mb-5">
@@ -2851,46 +2851,18 @@
                       <div className="flex flex-wrap gap-2">
                         {grp.options.filter(o=>o).map(opt => {
                           const isSelected = selectedSpecs[grp.name] === opt;
-                          // 計算此選項是否售完
-                          let outOfStock = false;
-                          let optStock = null;
-                          if (isSingleGroup) {
-                            optStock = Number(vStocks[opt]) || 0;
-                            outOfStock = optStock <= 0;
-                          } else {
-                            // 多規格：假設已選其他維度的情況下，看這個選項的所有組合是否全部售完
-                            const testCombo = {...selectedSpecs, [grp.name]: opt};
-                            const otherGroups = vGroups.filter(g => g.name !== grp.name);
-                            if (otherGroups.every(g => testCombo[g.name])) {
-                              // 其他維度都已選：直接查此組合庫存
-                              const key = vGroups.map(g => testCombo[g.name] || '').join('|');
-                              const s = Number(vStocks[key]) || 0;
-                              outOfStock = s <= 0;
-                              optStock = s;
-                            } else {
-                              // 其他維度未選：掃描此維度選項涉及的所有組合
-                              const allCombosForOpt = Object.keys(vStocks).filter(k => {
-                                const parts = k.split('|');
-                                const myIdx = vGroups.findIndex(g => g.name === grp.name);
-                                return myIdx >= 0 && parts[myIdx] === opt;
-                              });
-                              outOfStock = allCombosForOpt.length > 0 && allCombosForOpt.every(k => (Number(vStocks[k]) || 0) <= 0);
-                            }
-                          }
+                          // 顯示單規格庫存數（多規格不在按鈕判斷庫存，結帳時驗證）
+                          const optStock = isSingleGroup ? (Number(vStocks[opt]) || 0) : null;
                           return (
                             <button key={opt}
-                              disabled={outOfStock}
-                              onClick={() => !outOfStock && setSelectedSpecs(s => ({...s, [grp.name]: opt}))}
+                              onClick={() => setSelectedSpecs(s => ({...s, [grp.name]: opt}))}
                               className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all relative ${
-                                outOfStock
-                                  ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'
-                                  : isSelected
+                                isSelected
                                   ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
                                   : 'border-gray-200 text-gray-600 active:scale-95'
                               }`}>
-                              {outOfStock && <span className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="w-full h-px bg-gray-300 absolute" style={{transform:'rotate(135deg)'}}></span></span>}
                               {opt}
-                              {isSingleGroup && !outOfStock && optStock !== null && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
+                              {isSingleGroup && optStock !== null && optStock > 0 && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
                             </button>
                           );
                         })}
@@ -2898,12 +2870,11 @@
                     </div>
                   );
                 })}
-                {/*組合庫存提示*/}
+                {/*組合選擇提示*/}
                 {comboComplete && (
-                  <div className={`text-xs font-bold px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 ${comboStock > 0 ? 'bg-lime-50 text-lime-600 border border-lime-200' : 'bg-red-50 text-red-500 border border-red-100'}`}>
+                  <div className="text-xs font-bold px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 bg-lime-50 text-lime-600 border border-lime-200">
                     <span>已選：{comboLabel}</span>
-                    <span>·</span>
-                    <span>{comboStock > 0 ? `剩餘 ${comboStock} 件` : '此組合已售完'}</span>
+                    {comboStock > 0 && <><span>·</span><span>剩餘 {comboStock} 件</span></>}
                   </div>
                 )}
               </div>
@@ -2943,9 +2914,9 @@
             {/*加入購物車按鈕*/}
             <button
               onClick={handleAddToCart}
-              disabled={totalStock <= 0}
+              disabled={hasVariants && !comboComplete}
               className={`flex-1 py-3.5 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${
-                totalStock <= 0
+                hasVariants && !comboComplete
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : addedAnim
                   ? 'bg-green-500 text-white scale-95 shadow-green-200'
@@ -2953,7 +2924,7 @@
               }`}
             >
               <Icons.ShoppingCart className="w-5 h-5" />
-              {totalStock <= 0 ? '已售完' : addedAnim ? '已加入！' : '加入購物車'}
+              {hasVariants && !comboComplete ? '請選擇規格' : addedAnim ? '已加入！' : '加入購物車'}
             </button>
           </div>
         </div>
