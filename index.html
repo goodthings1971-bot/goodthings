@@ -99,6 +99,7 @@
       { bank: '街口支付', account: '902288309', note: '街口電子支付' },
       { bank: '中國信託 (822)', account: '241540044301', note: '' },
       { bank: '國泰世華 (013)', account: '011503590010', note: '' },
+      { bank: '元大銀行 (806)', account: '21242710826951', note: '' },
     ];
 
     // --- API 服務 ---
@@ -3294,9 +3295,13 @@
         );
       };
 
+      const [updatingStatus, setUpdatingStatus] = React.useState(new Set());
       const updateStatus = async (orderId, newStatus) => {
+        const key = orderId + ':' + newStatus;
+        if (updatingStatus.has(key)) return;
+        setUpdatingStatus(prev => new Set([...prev, key]));
         const order = orders.find(o => o.orderId === orderId);
-        if (!order) return;
+        if (!order) { setUpdatingStatus(prev => { const s=new Set(prev); s.delete(key); return s; }); return; }
         const method = order.content?.deliveryMethod || order.deliveryMethod;
         const pts = order.content?.pointsEarned || 0;
 
@@ -3343,11 +3348,16 @@
             }
           } else showAlert('更新失敗：' + (r?.error||'請稍後再試'));
         } catch(e) { showAlert('更新失敗'); }
+        finally { setUpdatingStatus(prev => { const s=new Set(prev); s.delete(orderId+':'+newStatus); return s; }); }
       };
 
+      const [updatingRedeem, setUpdatingRedeem] = React.useState(new Set());
       const updateRedemptionStatus = async (redemptionId, newStatus) => {
+        const key = redemptionId + ':' + newStatus;
+        if (updatingRedeem.has(key)) return;
+        setUpdatingRedeem(prev => new Set([...prev, key]));
         const redemption = redemptions.find(r => r.redemptionId === redemptionId);
-        if (!await showConfirm(`更新兌換狀態為「${newStatus==='Shipped'?'已出貨':'已完成'}」？`, '更新兌換狀態')) return;
+        if (!await showConfirm(`更新兌換狀態為「${newStatus==='Shipped'?'已出貨':'已完成'}」？`, '更新兌換狀態')) { setUpdatingRedeem(prev => { const s=new Set(prev); s.delete(key); return s; }); return; }
         try {
           const r = await api.post('updateRedemptionStatus', { adminId:user.lineId, redemptionId, status:newStatus, notify:false });
           if (r?.success) {
@@ -3359,6 +3369,7 @@
             setNotifyModal({ msg, toUserId: redemption.lineId || redemption.content?.lineId, onClose: () => setNotifyModal(null) });
           } else showAlert('更新失敗：' + (r?.error||'請稍後再試'));
         } catch(e) { showAlert('更新失敗'); }
+        finally { setUpdatingRedeem(prev => { const s=new Set(prev); s.delete(redemptionId+':'+newStatus); return s; }); }
       };
 
       const [savingProduct, setSavingProduct] = useState(false);
@@ -3723,10 +3734,11 @@
                 </div>
                 <div className="p-4 flex gap-3 border-t">
                   <button onClick={()=>{setShowAddCategoryModal(false);setNewCategory({id:'',name:'',iconUrl:'',isBrand:false}); }} className="flex-1 py-3 border rounded-xl font-bold text-gray-500">取消</button>
-                  <button onClick={async()=>{
-                    if (!newCategory.id||!newCategory.name){ showAlert('分類編號和名稱為必填'); return; }
+                  <button onClick={async(e)=>{
+                    const btn=e.currentTarget; if(btn.disabled) return; btn.disabled=true; btn.textContent='⏳ 儲存中...';
+                    if (!newCategory.id||!newCategory.name){ showAlert('分類編號和名稱為必填'); btn.disabled=false; btn.textContent='儲存'; return; }
                     const isEdit = !!(newCategory.id && allCategories.find(c=>c.id===newCategory.id));
-                    if (!isEdit && allCategories.find(c=>c.id===newCategory.id)){ showAlert('此分類編號已存在'); return; }
+                    if (!isEdit && allCategories.find(c=>c.id===newCategory.id)){ showAlert('此分類編號已存在'); btn.disabled=false; btn.textContent='儲存'; return; }
                     try {
                       const r = await api.post('saveCategory',{adminId:user.lineId,category:newCategory});
                       if (r?.success){
@@ -3741,8 +3753,8 @@
                         setShowAddCategoryModal(false);
                         setNewCategory({id:'',name:'',iconUrl:'',isBrand:false});
                         showAlert(isEdit ? '✅ 分類已更新！' : '✅ 分類已新增！');
-                      } else showAlert('儲存失敗：'+(r?.error||''));
-                    } catch(e){ showAlert('儲存失敗：'+e.message); }
+                      } else { showAlert('儲存失敗：'+(r?.error||'')); btn.disabled=false; btn.textContent='儲存'; }
+                    } catch(e){ showAlert('儲存失敗：'+e.message); btn.disabled=false; btn.textContent='儲存'; }
                   }} className="flex-1 py-3 bg-lime-600 text-white rounded-xl font-bold">儲存</button>
                 </div>
               </div>
@@ -3781,13 +3793,14 @@
                 </div>
                 <div className="p-4 flex gap-3 sticky bottom-0 bg-white border-t">
                   <button onClick={() => setEditCampaign(null)} className="flex-1 py-3 border rounded-xl font-bold text-gray-500">取消</button>
-                  <button onClick={async () => {
-                    if (!editCampaign['活動名稱']) { showAlert('活動名稱為必填'); return; }
+                  <button onClick={async (e) => {
+                    const btn=e.currentTarget; if(btn.disabled) return; btn.disabled=true; btn.textContent='⏳ 儲存中...';
+                    if (!editCampaign['活動名稱']) { showAlert('活動名稱為必填'); btn.disabled=false; btn.textContent='儲存'; return; }
                     try {
                       const r = await api.post('saveCampaign', { adminId:user.lineId, campaign:editCampaign });
                       if (r?.success) { showAlert('活動已儲存'); setEditCampaign(null); fetchTabData('campaigns'); }
-                      else showAlert('儲存失敗：' + (r?.error||''));
-                    } catch(e) { showAlert('儲存失敗'); }
+                      else { showAlert('儲存失敗：' + (r?.error||'')); btn.disabled=false; btn.textContent='儲存'; }
+                    } catch(e) { showAlert('儲存失敗'); btn.disabled=false; btn.textContent='儲存'; }
                   }} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold shadow-md">儲存</button>
                 </div>
               </div>
@@ -4018,9 +4031,9 @@
                           )}
                         </div>
                         <div className="flex gap-2">
-                          {order.status==='Pending' && <button onClick={() => updateStatus(order.orderId,'Shipped')} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform">確認出貨</button>}
-                          {order.status==='Shipped' && <button onClick={() => updateStatus(order.orderId,'Completed')} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform">完成 (發點數)</button>}
-                          {order.status==='Pending' && <button onClick={() => updateStatus(order.orderId,'Cancelled')} className="flex-1 bg-red-100 text-red-600 py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform">取消</button>}
+                          {order.status==='Pending' && <button disabled={updatingStatus.has(order.orderId+':Shipped')} onClick={() => updateStatus(order.orderId,'Shipped')} className={`flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold transition-transform ${updatingStatus.has(order.orderId+':Shipped')?'opacity-50 cursor-not-allowed':'active:scale-95'}`}>{updatingStatus.has(order.orderId+':Shipped')?'⏳':'確認出貨'}</button>}
+                          {order.status==='Shipped' && <button disabled={updatingStatus.has(order.orderId+':Completed')} onClick={() => updateStatus(order.orderId,'Completed')} className={`flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-bold transition-transform ${updatingStatus.has(order.orderId+':Completed')?'opacity-50 cursor-not-allowed':'active:scale-95'}`}>{updatingStatus.has(order.orderId+':Completed')?'⏳':'完成 (發點數)'}</button>}
+                          {order.status==='Pending' && <button disabled={updatingStatus.has(order.orderId+':Cancelled')} onClick={() => updateStatus(order.orderId,'Cancelled')} className={`flex-1 bg-red-100 text-red-600 py-2 rounded-lg text-sm font-bold transition-transform ${updatingStatus.has(order.orderId+':Cancelled')?'opacity-50 cursor-not-allowed':'active:scale-95'}`}>{updatingStatus.has(order.orderId+':Cancelled')?'⏳':'取消'}</button>}
                         </div>
                         </div>
                       </div>
@@ -4043,8 +4056,8 @@
                         <div>扣除點數: {r.content?.points}</div>
                       </div>
                       <div className="flex gap-2">
-                        {r.status==='Pending' && <button onClick={() => updateRedemptionStatus(r.redemptionId,'Shipped')} className="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold">通知出貨</button>}
-                        {r.status==='Shipped' && <button onClick={() => updateRedemptionStatus(r.redemptionId,'Completed')} className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-bold">完成兌換</button>}
+                        {r.status==='Pending' && <button disabled={updatingRedeem.has(r.redemptionId+':Shipped')} onClick={() => updateRedemptionStatus(r.redemptionId,'Shipped')} className={`flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold ${updatingRedeem.has(r.redemptionId+':Shipped')?'opacity-50 cursor-not-allowed':''}`}>{updatingRedeem.has(r.redemptionId+':Shipped')?'⏳':'通知出貨'}</button>}
+                        {r.status==='Shipped' && <button disabled={updatingRedeem.has(r.redemptionId+':Completed')} onClick={() => updateRedemptionStatus(r.redemptionId,'Completed')} className={`flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-bold ${updatingRedeem.has(r.redemptionId+':Completed')?'opacity-50 cursor-not-allowed':''}`}>{updatingRedeem.has(r.redemptionId+':Completed')?'⏳':'完成兌換'}</button>}
                       </div>
                     </div>
                   ))
@@ -4071,14 +4084,15 @@
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <button onClick={()=>setAdjustTarget(null)} className="py-3 border border-gray-200 rounded-xl font-bold text-gray-500">取消</button>
-                              <button onClick={async()=>{
+                              <button onClick={async(e)=>{
+                                const btn=e.currentTarget; if(btn.disabled) return; btn.disabled=true; btn.textContent='⏳ 調整中...';
                                 const pts = Number(document.getElementById('adj-pts').value);
-                                if (isNaN(pts)||pts===0){showAlert('請輸入非零數值');return;}
+                                if (isNaN(pts)||pts===0){showAlert('請輸入非零數值');btn.disabled=false;btn.textContent='確認調整';return;}
                                 try {
                                   const r = await api.post('adjustUserPoints',{adminId:user.lineId,lineId:adjustTarget.lineId,points:pts,reason:'管理員手動調整'});
                                   if(r?.success){showAlert(`✅ ${r.name} 點數由 ${r.before} 調整為 ${r.after} 點`);setAdjustTarget(null);fetchTabData('users');}
-                                  else showAlert('調整失敗：'+(r?.error||''));
-                                }catch(e){showAlert('調整失敗');}
+                                  else { showAlert('調整失敗：'+(r?.error||'')); btn.disabled=false; btn.textContent='確認調整'; }
+                                }catch(e){showAlert('調整失敗');btn.disabled=false;btn.textContent='確認調整';}
                               }} className="py-3 bg-lime-600 text-white rounded-xl font-bold shadow-md">確認調整</button>
                             </div>
                           </div>
@@ -4272,13 +4286,14 @@
                       <div>多規格商品顯示格式為「S:33 / M:44 / XL:55」，修改後點「儲存所有變更」一次更新全部。</div></div>
                     </div>
                     {inventoryDirty && (
-                      <button onClick={async () => {
+                      <button onClick={async (e) => {
+                        const btn=e.currentTarget; if(btn.disabled) return; btn.disabled=true; btn.textContent='⏳ 儲存中...';
                         try {
                           const updates = inventory.map(p => ({ id:p.id, stock:p.stock }));
                           const r = await api.post('batchUpdateStock', { adminId:user.lineId, updates });
                           if (r?.success) { showAlert(`✅ 已更新 ${r.updated} 項商品庫存`); setInventoryDirty(false); fetchTabData('inventory'); }
-                          else showAlert('儲存失敗：' + (r?.error||''));
-                        } catch(e) { showAlert('儲存失敗'); }
+                          else { showAlert('儲存失敗：' + (r?.error||'')); btn.disabled=false; btn.textContent='💾 儲存所有庫存變更'; }
+                        } catch(e) { showAlert('儲存失敗'); btn.disabled=false; btn.textContent='💾 儲存所有庫存變更'; }
                       }} className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-md animate-pulse">
                         💾 儲存所有庫存變更
                       </button>
@@ -4735,15 +4750,18 @@
                         ＋ 新增分類
                       </button>
                       {localCats.length > 0 && (
-                        <button onClick={async () => {
-                          const orders = localCats.map((c,i) => ({ id:c.id, sortOrder:i+1 }));
-                          const r = await api.post('reorderCategories', { adminId:user.lineId, orders });
-                          if (r?.success) {
-                            const updated = localCats.map((c,i) => ({...c,sortOrder:i+1}));
-                            setAllCategories(updated);
-                            setLocalCats(updated);
-                            showAlert('✅ 排序已儲存！');
-                          } else showAlert('排序儲存失敗：'+(r?.error||''));
+                        <button onClick={async (e) => {
+                          const btn=e.currentTarget; if(btn.disabled) return; btn.disabled=true; btn.textContent='⏳ 儲存中...';
+                          try {
+                            const orders = localCats.map((c,i) => ({ id:c.id, sortOrder:i+1 }));
+                            const r = await api.post('reorderCategories', { adminId:user.lineId, orders });
+                            if (r?.success) {
+                              const updated = localCats.map((c,i) => ({...c,sortOrder:i+1}));
+                              setAllCategories(updated); setLocalCats(updated);
+                              btn.textContent='✅ 已儲存！'; setTimeout(()=>{btn.disabled=false;btn.textContent='💾 儲存排序';},2000);
+                              showAlert('✅ 排序已儲存！');
+                            } else { showAlert('排序儲存失敗：'+(r?.error||'')); btn.disabled=false; btn.textContent='💾 儲存排序'; }
+                          } catch(e2) { showAlert('儲存失敗'); btn.disabled=false; btn.textContent='💾 儲存排序'; }
                         }} className="px-4 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md text-sm">
                           💾 儲存排序
                         </button>
@@ -4828,7 +4846,7 @@
                                     setLocalCats(updated);
                                     setAllCategories(updated);
                                   } else { showAlert('刪除失敗：' + (r?.error || '')); }
-                                }} className="p-2 bg-red-50 text-red-500 rounded-lg"><Icons.Trash className="w-4 h-4" /></button>
+                                }} className="p-2 bg-red-50 text-red-500 rounded-lg"><Icons.Trash2 className="w-4 h-4" /></button>
                               </div>
                             </div>
                           ))}
