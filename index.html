@@ -2678,12 +2678,16 @@
       // 顯示總庫存
       const getTotalStock = (product) => {
         if (!product) return 0;
+        // Always compute stock-string sum as reliable fallback
+        const stockSum = String(product.stock || '0').split(',').map(s => Number(s.trim()) || 0).reduce((a, b) => a + b, 0);
         const vg = parseVariantGroups(product);
         if (vg.length) {
           const vs = parseVariantStocks(product);
-          return Object.values(vs).reduce((a,b) => a + Number(b||0), 0);
+          const variantTotal = Object.values(vs).reduce((a,b) => a + Number(b||0), 0);
+          // If variant map is empty or sums to 0, fall back to stock string sum
+          return variantTotal > 0 ? variantTotal : stockSum;
         }
-        return Number(product.stock) || 0;
+        return stockSum;
       };
 
       const vGroups = product ? parseVariantGroups(product) : [];
@@ -3950,7 +3954,14 @@
                 {tab==='orders' && (
                   loading ? <div className="text-center text-gray-400 py-10 flex flex-col items-center gap-2"><div className="w-8 h-8 border-2 border-gray-200 border-t-lime-500 rounded-full animate-spin"></div><span className="text-sm">載入訂單中...</span></div> :
                   orders.length===0 ? <div className="text-center text-gray-400 py-10">無訂單資料</div> :
-                  orders.map(order => {
+                  orders.filter(order => {
+                    // 自動隱藏逾期的待處理訂單
+                    if (order.status === 'Pending' && order.payDeadline) {
+                      const dl = new Date(order.payDeadline);
+                      if (!isNaN(dl.getTime()) && new Date() > dl) return false;
+                    }
+                    return true;
+                  }).map(order => {
                     const statusInfo = getOrderStatusDisplay(order);
                     const method = order.content?.deliveryMethod || order.deliveryMethod;
                     return (
@@ -4194,8 +4205,17 @@
                     )}
                     {localProds.map((p, idx) => (
                       <div key={p.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex gap-3 items-center">
-                        {/* 排序箭頭 */}
+                        {/* 排序箭頭 + 置頂 */}
                         <div className="flex flex-col gap-0.5 flex-shrink-0">
+                          <button disabled={idx===0} title="置頂" onClick={async () => {
+                            const arr=[...localProds];
+                            const [item] = arr.splice(idx, 1);
+                            arr.unshift(item);
+                            setLocalProds(arr);
+                            const orders = arr.map((p,i) => ({ id:p.id, sortOrder:i+1 }));
+                            const r = await api.post('reorderProducts', { adminId:user.lineId, orders });
+                            if (r?.success) { setAllProducts(arr.map((p,i)=>({...p,sortOrder:i+1}))); }
+                          }} className="p-1 rounded bg-amber-100 disabled:opacity-30 active:scale-95" style={{fontSize:'9px',lineHeight:'1',padding:'3px 4px',fontWeight:'bold',color:'#92400e'}}>TOP</button>
                           <button disabled={idx===0} onClick={() => {
                             const arr=[...localProds]; const tmp=arr[idx]; arr[idx]=arr[idx-1]; arr[idx-1]=tmp;
                             setLocalProds(arr);
@@ -4734,8 +4754,26 @@
                           {localCats.map((c, idx) => (
                             <div key={c.id}
                               className={`bg-white rounded-2xl shadow-sm border p-3 flex items-center gap-3 transition-all ${catDragIdx===idx?'border-lime-400 bg-lime-50 shadow-md':'border-gray-100'}`}>
-                              {/*上下移動按鈕*/}
+                              {/*上下移動按鈕 + 置頂*/}
                               <div className="flex flex-col gap-0.5 flex-shrink-0">
+                                <button
+                                  disabled={idx === 0}
+                                  title="置頂"
+                                  onClick={async () => {
+                                    if (idx === 0) return;
+                                    const arr = [...localCats];
+                                    const [item] = arr.splice(idx, 1);
+                                    arr.unshift(item);
+                                    setLocalCats(arr);
+                                    setCatDragIdx(0);
+                                    setTimeout(() => setCatDragIdx(null), 300);
+                                    const orders = arr.map((c,i) => ({ id:c.id, sortOrder:i+1 }));
+                                    const r = await api.post('reorderCategories', { adminId:user.lineId, orders });
+                                    if (r?.success) { const updated = arr.map((c,i)=>({...c,sortOrder:i+1})); setAllCategories(updated); setLocalCats(updated); }
+                                  }}
+                                  className={`w-9 h-7 rounded-lg flex items-center justify-center font-black text-[10px] transition-all active:scale-90 ${idx===0?'bg-gray-50 text-gray-200 cursor-not-allowed':'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
+                                  TOP
+                                </button>
                                 <button
                                   disabled={idx === 0}
                                   onClick={() => {
