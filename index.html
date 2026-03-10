@@ -3180,6 +3180,8 @@
       useEffect(() => {
         if (!user) return;
         if (!ADMIN_IDS.includes(user.lineId)) { navigate('/'); return; }
+        // 記錄管理員登入日誌（每小時最多一次，GAS 側有去重）
+        api.post('logAdminLogin', { adminId: user.lineId, adminName: user.displayName || user.lineId }).catch(()=>{});
         fetchTabData('dashboard');
       }, [user]);
 
@@ -4813,8 +4815,21 @@
                                 </div>
                                 <div className="text-xs text-gray-400 font-mono">{c.id} · #{idx+1}</div>
                               </div>
-                              <button onClick={()=>{ setNewCategory({id:c.id,name:c.name,iconUrl:c.iconUrl||'',isBrand:c.isBrand||false}); setShowAddCategoryModal(true); }}
-                                className="p-2 bg-blue-50 text-blue-600 rounded-lg flex-shrink-0"><Icons.Edit className="w-4 h-4" /></button>
+                              <div className="flex gap-1.5 flex-shrink-0">
+                                <button title="編輯" onClick={()=>{ setNewCategory({id:c.id,name:c.name,iconUrl:c.iconUrl||'',isBrand:c.isBrand||false}); setShowAddCategoryModal(true); }}
+                                  className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
+                                <button title="刪除" onClick={async () => {
+                                  if (!await showConfirm(`確定刪除分類「${c.name}」？
+刪除後商品的分類設定不受影響。`, '刪除分類')) return;
+                                  const r = await api.post('deleteCategory', { adminId: user.lineId, categoryId: c.id });
+                                  if (r?.success) {
+                                    showAlert('✅ 分類已刪除');
+                                    const updated = localCats.filter(x => x.id !== c.id);
+                                    setLocalCats(updated);
+                                    setAllCategories(updated);
+                                  } else { showAlert('刪除失敗：' + (r?.error || '')); }
+                                }} className="p-2 bg-red-50 text-red-500 rounded-lg"><Icons.Trash className="w-4 h-4" /></button>
+                              </div>
                             </div>
                           ))}
                         </div>
