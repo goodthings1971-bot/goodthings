@@ -1249,10 +1249,11 @@
                 let stocks = {};
                 if (fp.variantStocksJson) { try { stocks = JSON.parse(fp.variantStocksJson); } catch(e) {} }
                 else { variants.forEach((v,i) => { stocks[v] = Number(String(fp.stock||'0').split(',')[i])||0; }); }
-                const avail = stocks[item.selectedVariant] || 0;
+                const variantKey = item.selectedVariant.split(' / ').join('|');
+                const avail = stocks[variantKey] !== undefined ? stocks[variantKey] : (stocks[item.selectedVariant] || 0);
                 if (avail < item.quantity) { showAlert(`⚠️ 「${item.name}（${item.selectedVariant}）」庫存不足，僅剩 ${avail} 件`); setIsSubmitting(false); return; }
               } else {
-                const avail = Number(fp.stock) || 0;
+                const avail = String(fp.stock||'0').split(',').map(s=>Number(s.trim())||0).reduce((a,b)=>a+b,0);
                 if (avail < item.quantity) { showAlert(`⚠️ 「${item.name}」庫存不足，僅剩 ${avail} 件`); setIsSubmitting(false); return; }
               }
             }
@@ -1447,9 +1448,11 @@
                   let stocks = {};
                   if (freshProd.variantStocksJson) { try { stocks = JSON.parse(freshProd.variantStocksJson); } catch(e) {} }
                   else { (freshProd.variants||[]).forEach((v,i) => { stocks[v] = Number(String(freshProd.stock||'0').split(',')[i])||0; }); }
-                  availStock = stocks[item.selectedVariant] || 0;
+                  const variantKey = item.selectedVariant.split(' / ').join('|');
+                  availStock = stocks[variantKey] !== undefined ? stocks[variantKey] : (stocks[item.selectedVariant] || 0);
                 } else {
-                  availStock = Number(freshProd.stock) || 0;
+                  const stockSum = String(freshProd.stock||'0').split(',').map(s=>Number(s.trim())||0).reduce((a,b)=>a+b,0);
+                  availStock = stockSum;
                 }
               }
               const isStockWarn = !item.isRedemption && availStock < item.quantity;
@@ -2830,7 +2833,12 @@
                 )}{product.name}
               </h1>
               <span className="px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0 bg-lime-100 text-lime-700">
-                {totalStock > 0 ? `庫存: ${totalStock}` : '庫存查詢中'}
+                {(() => {
+                  if (hasVariants && comboComplete && comboStock !== null) {
+                    return comboStock > 0 ? `此規格剩 ${comboStock} 件` : '此規格已無庫存';
+                  }
+                  return totalStock > 0 ? `總庫存: ${totalStock}` : '庫存查詢中';
+                })()}
               </span>
             </div>
             <div className="flex items-baseline gap-2 mb-5">
@@ -2851,18 +2859,41 @@
                       <div className="flex flex-wrap gap-2">
                         {grp.options.filter(o=>o).map(opt => {
                           const isSelected = selectedSpecs[grp.name] === opt;
-                          // 顯示單規格庫存數（多規格不在按鈕判斷庫存，結帳時驗證）
-                          const optStock = isSingleGroup ? (Number(vStocks[opt]) || 0) : null;
+                          // 計算此選項是否無庫存（使用正確的 pipe key 格式）
+                          let outOfStock = false;
+                          let optStock = null;
+                          if (isSingleGroup) {
+                            // 單組規格：key 直接是選項名稱
+                            optStock = Number(vStocks[opt]) || 0;
+                            outOfStock = optStock <= 0;
+                          } else {
+                            // 多組規格：key 是 pipe-joined 組合
+                            const testCombo = {...selectedSpecs, [grp.name]: opt};
+                            const otherGroups = vGroups.filter(g => g.name !== grp.name);
+                            if (otherGroups.every(g => testCombo[g.name])) {
+                              const key = vGroups.map(g => testCombo[g.name] || '').join('|');
+                              optStock = Number(vStocks[key]) || 0;
+                              outOfStock = optStock <= 0;
+                            } else {
+                              const myIdx = vGroups.findIndex(g => g.name === grp.name);
+                              const allCombos = Object.keys(vStocks).filter(k => k.split('|')[myIdx] === opt);
+                              outOfStock = allCombos.length > 0 && allCombos.every(k => (Number(vStocks[k]) || 0) <= 0);
+                            }
+                          }
                           return (
                             <button key={opt}
-                              onClick={() => setSelectedSpecs(s => ({...s, [grp.name]: opt}))}
+                              disabled={outOfStock}
+                              onClick={() => !outOfStock && setSelectedSpecs(s => ({...s, [grp.name]: opt}))}
                               className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all relative ${
-                                isSelected
+                                outOfStock
+                                  ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'
+                                  : isSelected
                                   ? 'border-lime-500 bg-lime-50 text-lime-700 shadow-sm'
                                   : 'border-gray-200 text-gray-600 active:scale-95'
                               }`}>
+                              {outOfStock && <span className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="w-full h-px bg-gray-300 absolute" style={{transform:'rotate(135deg)'}}></span></span>}
                               {opt}
-                              {isSingleGroup && optStock !== null && optStock > 0 && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
+                              {isSingleGroup && !outOfStock && optStock !== null && <span className={`ml-1.5 text-xs ${isSelected?'text-lime-500':'text-gray-400'}`}>({optStock})</span>}
                             </button>
                           );
                         })}
