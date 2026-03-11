@@ -3139,7 +3139,7 @@
     };
 
     const AdminDashboard = () => {
-      const { user, allCategories, setAllCategories, setSettings } = useAppContext();
+      const { user, allCategories, setAllCategories, setSettings, setAllProducts } = useAppContext();
       const { showAlert, showConfirm } = useDialog();
       const navigate = useNavigate();
       const [orders, setOrders] = useState([]);
@@ -3195,8 +3195,17 @@
         if (!protectedTabs.includes(tab)) setSheetPwdUnlocked(false);
       }, [tab]);
 
-      // 同步 localCats 給拖曳使用
-      useEffect(() => { setLocalCats([...allCategories]); }, [allCategories]);
+      // 同步 localCats — 只有在分類的 id 組合有增減時才重置（避免排序操作被覆蓋）
+      const allCatIds = allCategories.map(c=>c.id).join(',');
+      useEffect(() => { setLocalCats(prev => {
+        const prevIds = prev.map(c=>c.id).join(',');
+        // id 列表沒有變化（只是 reference 更新）→ 保留目前順序，僅更新各筆資料內容
+        if (prevIds === allCatIds && prev.length === allCategories.length) {
+          return prev.map(pc => { const fresh = allCategories.find(ac=>ac.id===pc.id); return fresh ? {...pc,...fresh} : pc; });
+        }
+        // id 列表有增減 → 完整重置
+        return [...allCategories];
+      }); }, [allCatIds]);
 
       const fetchTabData = async (currentTab) => {
         setLoading(true);
