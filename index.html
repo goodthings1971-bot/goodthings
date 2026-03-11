@@ -3195,17 +3195,7 @@
         if (!protectedTabs.includes(tab)) setSheetPwdUnlocked(false);
       }, [tab]);
 
-      // 同步 localCats — 只有在分類的 id 組合有增減時才重置（避免排序操作被覆蓋）
-      const allCatIds = allCategories.map(c=>c.id).join(',');
-      useEffect(() => { setLocalCats(prev => {
-        const prevIds = prev.map(c=>c.id).join(',');
-        // id 列表沒有變化（只是 reference 更新）→ 保留目前順序，僅更新各筆資料內容
-        if (prevIds === allCatIds && prev.length === allCategories.length) {
-          return prev.map(pc => { const fresh = allCategories.find(ac=>ac.id===pc.id); return fresh ? {...pc,...fresh} : pc; });
-        }
-        // id 列表有增減 → 完整重置
-        return [...allCategories];
-      }); }, [allCatIds]);
+      // localCats 由 fetchTabData('categories') 初始化，不再 watch allCategories（避免排序被重置）
 
       const fetchTabData = async (currentTab) => {
         setLoading(true);
@@ -3238,7 +3228,9 @@
           } else if (currentTab==='broadcast') {
             // broadcast 不需要預載資料
           } else if (currentTab==='categories') {
-            // categories loaded from allCategories context
+            // 進入分類頁籤時直接從 API 重新載入，不依賴 context（避免 allCategories 更新觸發排序重置）
+            const r = await api.fetchCategories();
+            if (r && Array.isArray(r)) { setAllCategories(r); setLocalCats([...r]); }
           } else if (currentTab==='notices') {
             // notices - static tab, no preload needed
           } else if (currentTab==='inventory') {
@@ -4819,16 +4811,23 @@
                                   disabled={idx === 0}
                                   title="置頂"
                                   onClick={async () => {
-                                    if (idx === 0) return;
-                                    const arr = [...localCats];
-                                    const [item] = arr.splice(idx, 1);
-                                    arr.unshift(item);
-                                    setLocalCats(arr);
+                                    const cid = c.id;
+                                    let newArr;
+                                    setLocalCats(prev => {
+                                      const i = prev.findIndex(x => x.id === cid);
+                                      if (i <= 0) return prev;
+                                      const arr = [...prev];
+                                      const [item] = arr.splice(i, 1);
+                                      arr.unshift(item);
+                                      newArr = arr;
+                                      return arr;
+                                    });
                                     setCatDragIdx(0);
                                     setTimeout(() => setCatDragIdx(null), 300);
-                                    const orders = arr.map((c,i) => ({ id:c.id, sortOrder:i+1 }));
+                                    if (!newArr) return;
+                                    const orders = newArr.map((x,i) => ({ id:x.id, sortOrder:i+1 }));
                                     const r = await api.post('reorderCategories', { adminId:user.lineId, orders });
-                                    if (r?.success) { const updated = arr.map((c,i)=>({...c,sortOrder:i+1})); setAllCategories(updated); setLocalCats(updated); }
+                                    if (r?.success) { setAllCategories(newArr.map((x,i)=>({...x,sortOrder:i+1}))); }
                                   }}
                                   className={`w-9 h-7 rounded-lg flex items-center justify-center font-black text-[10px] transition-all active:scale-90 ${idx===0?'bg-gray-50 text-gray-200 cursor-not-allowed':'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
                                   TOP
@@ -4836,12 +4835,14 @@
                                 <button
                                   disabled={idx === 0}
                                   onClick={() => {
-                                    if (idx === 0) return;
-                                    const arr = [...localCats];
-                                    [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
-                                    setLocalCats(arr);
-                                    setCatDragIdx(idx-1);
-                                    setTimeout(() => setCatDragIdx(null), 300);
+                                    const cid = c.id;
+                                    setLocalCats(prev => {
+                                      const i = prev.findIndex(x => x.id === cid);
+                                      if (i <= 0) return prev;
+                                      const arr = [...prev];
+                                      [arr[i-1], arr[i]] = [arr[i], arr[i-1]];
+                                      return arr;
+                                    });
                                   }}
                                   className={`w-9 h-8 rounded-lg flex items-center justify-center font-bold text-base transition-all active:scale-90 ${idx===0?'bg-gray-50 text-gray-200 cursor-not-allowed':'bg-lime-100 text-lime-600 hover:bg-lime-200 active:bg-lime-300'}`}>
                                   ▲
@@ -4849,12 +4850,14 @@
                                 <button
                                   disabled={idx === localCats.length - 1}
                                   onClick={() => {
-                                    if (idx === localCats.length - 1) return;
-                                    const arr = [...localCats];
-                                    [arr[idx], arr[idx+1]] = [arr[idx+1], arr[idx]];
-                                    setLocalCats(arr);
-                                    setCatDragIdx(idx+1);
-                                    setTimeout(() => setCatDragIdx(null), 300);
+                                    const cid = c.id;
+                                    setLocalCats(prev => {
+                                      const i = prev.findIndex(x => x.id === cid);
+                                      if (i < 0 || i >= prev.length - 1) return prev;
+                                      const arr = [...prev];
+                                      [arr[i], arr[i+1]] = [arr[i+1], arr[i]];
+                                      return arr;
+                                    });
                                   }}
                                   className={`w-9 h-8 rounded-lg flex items-center justify-center font-bold text-base transition-all active:scale-90 ${idx===localCats.length-1?'bg-gray-50 text-gray-200 cursor-not-allowed':'bg-lime-100 text-lime-600 hover:bg-lime-200 active:bg-lime-300'}`}>
                                   ▼
