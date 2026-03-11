@@ -3567,7 +3567,13 @@
                               <input value={grp.name}
                                 onChange={ev => { const gs=[...editProduct.variantGroups]; gs[gi]={...gs[gi],name:ev.target.value}; setEditProduct(ep=>({...ep,variantGroups:gs})); }}
                                 placeholder="規格名稱，例：顏色" className="flex-1 p-1.5 border rounded-lg text-sm font-bold" />
-                              <button onClick={() => { const gs=editProduct.variantGroups.filter((_,i)=>i!==gi); setEditProduct(ep=>({...ep,variantGroups:gs})); }}
+                              <button onClick={() => {
+                                const gs=editProduct.variantGroups.filter((_,i)=>i!==gi);
+                                const validGrps=gs.filter(g=>g.name&&g.options.some(o=>o));
+                                const validCombos=validGrps.length ? validGrps.reduce((acc,grp)=>{ const opts=grp.options.filter(o=>o); return acc.length?acc.flatMap(prev=>opts.map(o=>[...prev,o])):opts.map(o=>[o]); },[]).map(c=>c.join('|')) : [];
+                                const prunedStocks=Object.fromEntries(Object.entries(editProduct.variantStocks||{}).filter(([k])=>validCombos.includes(k)));
+                                setEditProduct(ep=>({...ep,variantGroups:gs,variantStocks:prunedStocks}));
+                              }}
                                 className="text-red-400 font-bold text-lg w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50">✕</button>
                             </div>
                             <div className="flex flex-wrap gap-1.5 items-center">
@@ -3576,7 +3582,15 @@
                                   <input value={opt}
                                     onChange={ev => { const gs=[...editProduct.variantGroups]; const opts=[...gs[gi].options]; opts[oi]=ev.target.value; gs[gi]={...gs[gi],options:opts}; setEditProduct(ep=>({...ep,variantGroups:gs})); }}
                                     className="border rounded-lg px-2 py-1 text-sm text-center w-14" placeholder="選項" />
-                                  <button onClick={() => { const gs=[...editProduct.variantGroups]; const opts=gs[gi].options.filter((_,i)=>i!==oi); gs[gi]={...gs[gi],options:opts.length?opts:['']};setEditProduct(ep=>({...ep,variantGroups:gs})); }}
+                                  <button onClick={() => {
+                                      const gs=[...editProduct.variantGroups];
+                                      const opts=gs[gi].options.filter((_,i)=>i!==oi);
+                                      gs[gi]={...gs[gi],options:opts.length?opts:['']};
+                                      const validGrps=gs.filter(g=>g.name&&g.options.some(o=>o));
+                                      const validCombos=validGrps.length ? validGrps.reduce((acc,grp)=>{ const o2=grp.options.filter(o=>o); return acc.length?acc.flatMap(prev=>o2.map(o=>[...prev,o])):o2.map(o=>[o]); },[]).map(c=>c.join('|')) : [];
+                                      const prunedStocks=Object.fromEntries(Object.entries(editProduct.variantStocks||{}).filter(([k])=>validCombos.includes(k)));
+                                      setEditProduct(ep=>({...ep,variantGroups:gs,variantStocks:prunedStocks}));
+                                    }}
                                     className="text-gray-300 text-xs w-4">✕</button>
                                 </div>
                               ))}
