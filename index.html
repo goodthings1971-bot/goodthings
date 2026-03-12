@@ -2689,17 +2689,6 @@
         return () => clearInterval(t);
       }, [product, settings]);
 
-      // 當選擇的規格組合有對應圖片時，自動切換到該圖片
-      useEffect(() => {
-        if (!comboKey || !vImages[comboKey]) return;
-        const imgUrl = vImages[comboKey];
-        // 找這張圖在 images 陣列的 index；若不存在則插入到最前顯示
-        const imgs = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
-        const found = imgs.findIndex(u => u === imgUrl);
-        if (found >= 0) { setImgIdx(found); }
-        else { setImgIdx(-1); } // -1 表示顯示規格圖（不在 images 陣列中）
-      }, [comboKey]);
-
       // 顯示總庫存
       const getTotalStock = (product) => {
         if (!product) return 0;
@@ -2731,6 +2720,16 @@
       const comboStock = comboComplete ? (Number(vStocks[comboKey]) || 0) : null;
       // 購物車顯示標籤
       const comboLabel = comboComplete ? vGroups.map(g => selectedSpecs[g.name]).join(' / ') : null;
+
+      // 當選擇的規格組合有對應圖片時，自動切換到該圖片（必須在 comboKey / vImages 宣告之後）
+      useEffect(() => {
+        if (!comboKey || !vImages[comboKey]) return;
+        const imgUrl = vImages[comboKey];
+        const imgs = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
+        const found = imgs.findIndex(u => u === imgUrl);
+        if (found >= 0) { setImgIdx(found); }
+        else { setImgIdx(-1); }
+      }, [comboKey]);
 
       const handleAddToCart = async () => {
         if (hasVariants && !comboComplete) { showAlert('請選擇所有規格'); return; }
