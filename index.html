@@ -2743,18 +2743,7 @@
           else { setImgIdx(-1); }
           return;
         }
-        // 次選：單規格組 → 用選項的 index 對應商品圖片 index
-        // 例：顏色[粉紅,黑,藍] 對應 images[0,1,2]
-        if (vGroups.length === 1 && imgs.length > 1) {
-          const grp = vGroups[0];
-          const optIdx = grp.options.filter(o=>o).indexOf(selectedSpecs[grp.name]);
-          if (optIdx >= 0 && optIdx < imgs.length) {
-            variantImgLocked.current = true;
-            setImgIdx(optIdx);
-            return;
-          }
-        }
-        // 沒有對應圖 → 解鎖讓輪播繼續
+        // 沒有 variantImages 精確對應 → 解鎖讓輪播繼續（不猜 index，避免順序不同時對應錯誤）
         variantImgLocked.current = false;
       }, [comboKey]);
 
@@ -2849,7 +2838,19 @@
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 pt-6 pb-2 px-3">
                 <div className="flex gap-1.5 overflow-x-auto no-scrollbar justify-center">
                   {images.map((url,i) => (
-                    <button key={i} onClick={e=>{e.stopPropagation();setImgIdx(i);}}
+                    <button key={i} onClick={e=>{
+                        e.stopPropagation();
+                        variantImgLocked.current = false;
+                        setImgIdx(i);
+                        // 若 variantImages 有對應此圖的規格，自動選取該規格
+                        const matchedKey = Object.keys(vImages).find(k => vImages[k] === url);
+                        if (matchedKey && vGroups.length > 0) {
+                          const parts = matchedKey.split('|');
+                          const newSpecs = {};
+                          vGroups.forEach((g, gi) => { if (parts[gi]) newSpecs[g.name] = parts[gi]; });
+                          if (Object.keys(newSpecs).length) { setSelectedSpecs(newSpecs); variantImgLocked.current = true; }
+                        }
+                      }}
                       className={`flex-shrink-0 w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${i===imgIdx?'border-white scale-110':'border-white/30'}`}>
                       <img src={url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </button>
@@ -3670,31 +3671,47 @@
                       const stocks = editProduct.variantStocks || {};
                       return (
                         <div className="bg-white rounded-xl border border-lime-100 p-2.5">
-                          <div className="text-xs font-bold text-gray-500 mb-2">各規格組合庫存（共 {combos.length} 組）</div>
-                          <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+                          <div className="text-xs font-bold text-gray-500 mb-2">各規格組合庫存 · 規格圖片（共 {combos.length} 組）<span className="font-normal text-gray-400 ml-1">←點商品圖可快速對應規格</span></div>
+                          <div className="grid grid-cols-1 gap-1.5 max-h-52 overflow-y-auto">
                             {combos.map(combo => {
                               const key=combo.join('|');
                               const curVal = stocks[key] !== undefined ? stocks[key] : 0;
                               const vImgs = editProduct.variantImages || {};
                               const varImgUrl = vImgs[key] || '';
+                              // 已上傳的商品圖片列表（供快速選取）
+                              const existingImgs = (editProduct.images||[]).filter(Boolean);
                               return (
-                                <div key={key} className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1">
-                                  {/* 規格圖片上傳 */}
-                                  <label className="flex-shrink-0 cursor-pointer relative group" title={varImgUrl ? '已上傳規格圖，點擊更換' : '上傳此規格圖片'}>
-                                    <input type="file" accept="image/*" className="hidden" onChange={async ev => {
-                                      const file = ev.target.files?.[0]; if (!file) return;
-                                      const b64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
-                                      const result = await api.post('uploadProductImage',{adminId:user.lineId,fileName:file.name,mimeType:file.type,base64Data:b64});
-                                      if (result?.url) setEditProduct(ep=>({...ep,variantImages:{...(ep.variantImages||{}),[key]:result.url}}));
-                                      else showAlert('上傳失敗：'+(result?.error||''));
-                                      ev.target.value='';
-                                    }} />
+                                <div key={key} className="col-span-2 flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1.5">
+                                  {/* 規格圖片：優先從現有商品圖選取，也可上傳新圖 */}
+                                  <div className="flex-shrink-0 flex items-center gap-1">
+                                    {/* 已有規格圖：顯示縮圖 + 清除鍵 */}
                                     {varImgUrl
-                                      ? <img src={varImgUrl} className="w-9 h-9 rounded-lg object-cover border-2 border-lime-400" referrerPolicy="no-referrer" />
-                                      : <div className="w-9 h-9 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-300 group-hover:border-lime-400 group-hover:text-lime-500 transition-all text-base">📷</div>}
-                                    {varImgUrl && <button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setEditProduct(ep=>{const ni={...(ep.variantImages||{})};delete ni[key];return {...ep,variantImages:ni};});}} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center">✕</button>}
-                                  </label>
-                                  <span className="text-xs text-gray-600 flex-1 truncate">{combo.join(' / ')}</span>
+                                      ? <div className="relative group">
+                                          <img src={varImgUrl} className="w-9 h-9 rounded-lg object-cover border-2 border-lime-400" referrerPolicy="no-referrer" />
+                                          <button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setEditProduct(ep=>{const ni={...(ep.variantImages||{})};delete ni[key];return {...ep,variantImages:ni};});}} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center">✕</button>
+                                        </div>
+                                      : <label className="cursor-pointer group" title="上傳新規格圖">
+                                          <input type="file" accept="image/*" className="hidden" onChange={async ev => {
+                                            const file = ev.target.files?.[0]; if (!file) return;
+                                            const b64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+                                            const result = await api.post('uploadProductImage',{adminId:user.lineId,fileName:file.name,mimeType:file.type,base64Data:b64});
+                                            if (result?.url) setEditProduct(ep=>({...ep,variantImages:{...(ep.variantImages||{}),[key]:result.url}}));
+                                            else showAlert('上傳失敗：'+(result?.error||''));
+                                            ev.target.value='';
+                                          }} />
+                                          <div className="w-9 h-9 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 group-hover:border-lime-400 group-hover:text-lime-500 transition-all text-base">📷</div>
+                                        </label>}
+                                    {/* 從現有商品圖快速選取 */}
+                                    {existingImgs.length > 0 && existingImgs.map((imgUrl, ii) => (
+                                      <button key={ii} type="button"
+                                        onClick={()=>setEditProduct(ep=>({...ep,variantImages:{...(ep.variantImages||{}),[key]:imgUrl}}))}
+                                        title={`選擇第 ${ii+1} 張圖`}
+                                        className={`w-9 h-9 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${varImgUrl===imgUrl?'border-lime-500 ring-2 ring-lime-300':'border-gray-200 hover:border-lime-400'}`}>
+                                        <img src={imgUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <span className="text-xs text-gray-600 flex-1 truncate font-medium">{combo.join(' / ')}</span>
                                   <input type="number" min="0"
                                     defaultValue={curVal}
                                     key={key + '_' + curVal}
