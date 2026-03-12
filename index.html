@@ -2637,6 +2637,7 @@
       const [imgIdx, setImgIdx] = useState(0);
       const [lightbox, setLightbox] = useState(false);
       const touchStartX = React.useRef(null);
+      const variantImgLocked = React.useRef(false); // 選了規格圖後暫停輪播
 
       // 購物車總數
       const cartCount = cart.reduce((a, c) => a + c.quantity, 0);
@@ -2685,7 +2686,11 @@
         const count = imgs.length;
         if (count <= 1) return;
         const sec = Number(settings?.carouselSeconds) || 4;
-        const t = setInterval(() => setImgIdx(i => (i+1) % count), sec * 1000);
+        const t = setInterval(() => {
+          // 若使用者已選規格圖，不自動輪播（避免蓋掉規格圖）
+          if (variantImgLocked.current) return;
+          setImgIdx(i => (i+1) % Math.max(count, 1));
+        }, sec * 1000);
         return () => clearInterval(t);
       }, [product, settings]);
 
@@ -2723,12 +2728,34 @@
 
       // 當選擇的規格組合有對應圖片時，自動切換到該圖片（必須在 comboKey / vImages 宣告之後）
       useEffect(() => {
-        if (!comboKey || !vImages[comboKey]) return;
-        const imgUrl = vImages[comboKey];
         const imgs = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
-        const found = imgs.findIndex(u => u === imgUrl);
-        if (found >= 0) { setImgIdx(found); }
-        else { setImgIdx(-1); }
+        if (!comboKey) {
+          // 規格被清除 → 解鎖輪播並回到第一張
+          variantImgLocked.current = false;
+          setImgIdx(0);
+          return;
+        }
+        // 優先：有 variantImages 精確對應
+        if (vImages[comboKey]) {
+          variantImgLocked.current = true;
+          const found = imgs.findIndex(u => u === vImages[comboKey]);
+          if (found >= 0) { setImgIdx(found); }
+          else { setImgIdx(-1); }
+          return;
+        }
+        // 次選：單規格組 → 用選項的 index 對應商品圖片 index
+        // 例：顏色[粉紅,黑,藍] 對應 images[0,1,2]
+        if (vGroups.length === 1 && imgs.length > 1) {
+          const grp = vGroups[0];
+          const optIdx = grp.options.filter(o=>o).indexOf(selectedSpecs[grp.name]);
+          if (optIdx >= 0 && optIdx < imgs.length) {
+            variantImgLocked.current = true;
+            setImgIdx(optIdx);
+            return;
+          }
+        }
+        // 沒有對應圖 → 解鎖讓輪播繼續
+        variantImgLocked.current = false;
       }, [comboKey]);
 
       const handleAddToCart = async () => {
@@ -2774,8 +2801,8 @@
       const images = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
       const imgCount = images.length || 1;
       const carouselSec = Number(settings?.carouselSeconds) || 4;
-      const goPrev = () => setImgIdx(i => (i - 1 + imgCount) % imgCount);
-      const goNext = () => setImgIdx(i => (i + 1) % imgCount);
+      const goPrev = () => { variantImgLocked.current = false; setImgIdx(i => (i - 1 + Math.max(imgCount,1)) % Math.max(imgCount,1)); };
+      const goNext = () => { variantImgLocked.current = false; setImgIdx(i => (i + 1) % Math.max(imgCount,1)); };
 
       return (
         <div className="min-h-screen bg-white pb-28">
