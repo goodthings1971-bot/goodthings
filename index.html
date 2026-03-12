@@ -326,7 +326,7 @@
               </div>
               <h1 className="text-2xl font-black text-lime-700 tracking-wide">美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.09</span>
+                <span className="bg-lime-100 text-lime-600 text-xs font-bold px-2.5 py-1 rounded-full border border-lime-200">V2.10</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -1472,10 +1472,20 @@
                   </div>
                   <div className="flex justify-between items-end">
                     <div className="font-bold text-lime-600">{item.isRedemption ? `${item.redeemPoints} 點` : `NT$${item.price}`}</div>
-                    <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
-                      <button onClick={() => updateQuantity(item.id, item.quantity-1, item.selectedVariant, item.isRedemption)} className="p-1"><Icons.Minus className="w-4 h-4" /></button>
-                      <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity+1, item.selectedVariant, item.isRedemption)} className="p-1"><Icons.Plus className="w-4 h-4" /></button>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <button
+                        onClick={async () => {
+                          const ok = await showConfirm(`確定要從購物車移除「${item.name}${item.selectedVariant ? ' ('+item.selectedVariant+')' : ''}」？`, '移除商品');
+                          if (ok) updateQuantity(item.id, 0, item.selectedVariant, item.isRedemption);
+                        }}
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 active:scale-95 transition-all px-1.5 py-0.5 rounded-lg hover:bg-red-50">
+                        <Icons.Trash2 className="w-3.5 h-3.5" /><span>移除</span>
+                      </button>
+                      <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
+                        <button onClick={() => updateQuantity(item.id, item.quantity-1, item.selectedVariant, item.isRedemption)} className="p-1"><Icons.Minus className="w-4 h-4" /></button>
+                        <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, item.quantity+1, item.selectedVariant, item.isRedemption)} className="p-1"><Icons.Plus className="w-4 h-4" /></button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2679,6 +2689,17 @@
         return () => clearInterval(t);
       }, [product, settings]);
 
+      // 當選擇的規格組合有對應圖片時，自動切換到該圖片
+      useEffect(() => {
+        if (!comboKey || !vImages[comboKey]) return;
+        const imgUrl = vImages[comboKey];
+        // 找這張圖在 images 陣列的 index；若不存在則插入到最前顯示
+        const imgs = !product ? [] : (Array.isArray(product.images) ? product.images.filter(Boolean) : (product.images||'').split(',').map(s=>s.trim()).filter(Boolean));
+        const found = imgs.findIndex(u => u === imgUrl);
+        if (found >= 0) { setImgIdx(found); }
+        else { setImgIdx(-1); } // -1 表示顯示規格圖（不在 images 陣列中）
+      }, [comboKey]);
+
       // 顯示總庫存
       const getTotalStock = (product) => {
         if (!product) return 0;
@@ -2696,6 +2717,11 @@
 
       const vGroups = product ? parseVariantGroups(product) : [];
       const vStocks = product ? parseVariantStocks(product) : {};
+      // 解析各規格組合圖片
+      const vImages = (() => {
+        if (!product || !product.variantImagesJson) return {};
+        try { return JSON.parse(product.variantImagesJson); } catch(e) { return {}; }
+      })();
       const hasVariants = vGroups.length > 0;
 
       // 目前選擇是否完整
@@ -2759,7 +2785,7 @@
             <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center" onClick={() => setLightbox(false)}>
               <button className="absolute top-5 right-5 text-white text-3xl font-bold z-10 bg-black/40 w-10 h-10 rounded-full flex items-center justify-center">×</button>
               {imgCount > 1 && <button onClick={e=>{e.stopPropagation();goPrev();}} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl z-10">‹</button>}
-              <img src={images[imgIdx]||''} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" onClick={e=>e.stopPropagation()} />
+              <img src={imgIdx === -1 ? (vImages[comboKey]||images[0]||'') : (images[imgIdx]||'')} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" onClick={e=>e.stopPropagation()} />
               {imgCount > 1 && <button onClick={e=>{e.stopPropagation();goNext();}} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl z-10">›</button>}
               {imgCount > 1 && <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5">{images.map((_,i)=><span key={i} className={`w-2 h-2 rounded-full transition-all ${i===imgIdx?'bg-white scale-125':'bg-white/40'}`}/>)}</div>}
             </div>
@@ -2775,7 +2801,7 @@
             }}>
             <div className="relative aspect-square w-full cursor-zoom-in" onClick={() => setLightbox(true)}>
               {images.length > 0
-                ? <img src={images[imgIdx]} alt={product.name} className="w-full h-full object-cover transition-opacity duration-500" referrerPolicy="no-referrer" />
+                ? <img src={imgIdx === -1 ? vImages[comboKey] : images[imgIdx]} alt={product.name} className="w-full h-full object-cover transition-opacity duration-500" referrerPolicy="no-referrer" />
                 : <div className="w-full h-full flex items-center justify-center text-gray-400">無圖片</div>
               }
               {/*點擊放大提示*/}
@@ -3396,9 +3422,14 @@
             p.variantType = vg.map(g=>g.name).join('×');
             p.variantGroupsJson = JSON.stringify(vg);
             p.variantStocksJson = JSON.stringify(stocks);
+            const vImgs = p.variantImages || {};
+            // prune variantImages to only valid combos
+            const validImgs = Object.fromEntries(Object.entries(vImgs).filter(([k]) => combos.map(c=>c.join('|')).includes(k)));
+            p.variantImagesJson = Object.keys(validImgs).length ? JSON.stringify(validImgs) : '';
           } else {
             p.variantGroupsJson = '';
             p.variantStocksJson = '';
+            p.variantImagesJson = '';
             p.variants = [];
             p.variantType = '';
           }
@@ -3618,8 +3649,25 @@
                             {combos.map(combo => {
                               const key=combo.join('|');
                               const curVal = stocks[key] !== undefined ? stocks[key] : 0;
+                              const vImgs = editProduct.variantImages || {};
+                              const varImgUrl = vImgs[key] || '';
                               return (
                                 <div key={key} className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1">
+                                  {/* 規格圖片上傳 */}
+                                  <label className="flex-shrink-0 cursor-pointer relative group" title={varImgUrl ? '已上傳規格圖，點擊更換' : '上傳此規格圖片'}>
+                                    <input type="file" accept="image/*" className="hidden" onChange={async ev => {
+                                      const file = ev.target.files?.[0]; if (!file) return;
+                                      const b64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+                                      const result = await api.post('uploadProductImage',{adminId:user.lineId,fileName:file.name,mimeType:file.type,base64Data:b64});
+                                      if (result?.url) setEditProduct(ep=>({...ep,variantImages:{...(ep.variantImages||{}),[key]:result.url}}));
+                                      else showAlert('上傳失敗：'+(result?.error||''));
+                                      ev.target.value='';
+                                    }} />
+                                    {varImgUrl
+                                      ? <img src={varImgUrl} className="w-9 h-9 rounded-lg object-cover border-2 border-lime-400" referrerPolicy="no-referrer" />
+                                      : <div className="w-9 h-9 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-300 group-hover:border-lime-400 group-hover:text-lime-500 transition-all text-base">📷</div>}
+                                    {varImgUrl && <button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setEditProduct(ep=>{const ni={...(ep.variantImages||{})};delete ni[key];return {...ep,variantImages:ni};});}} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center">✕</button>}
+                                  </label>
                                   <span className="text-xs text-gray-600 flex-1 truncate">{combo.join(' / ')}</span>
                                   <input type="number" min="0"
                                     defaultValue={curVal}
@@ -3854,7 +3902,7 @@
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
-              <span className="ml-auto text-lime-200 text-xs">V2.09</span>
+              <span className="ml-auto text-lime-200 text-xs">V2.10</span>
             </div>
             {/*12格功能選單*/}
             <div className="grid grid-cols-4 gap-1.5">
@@ -4248,7 +4296,7 @@
                 {/*商品管理*/}
                 {tab==='products' && (
                   <div className="space-y-4">
-                    <button onClick={()=>setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',brandCategoryId:'',isOnSale:false,isVirtual:false,allowCoupon:true,variantGroups:[],variantStocks:{} })}
+                    <button onClick={()=>setEditProduct({ name:'',price:0,originalPrice:0,stock:'',description:'',images:[],variants:[],variantType:'',videoUrl:'',redeemPoints:0,categoryId:'',brandCategoryId:'',isOnSale:false,isVirtual:false,allowCoupon:true,variantGroups:[],variantStocks:{},variantImages:{} })}
                       className="w-full bg-lime-600 text-white py-3 rounded-xl font-bold shadow-md flex items-center justify-center gap-2">
                       <Icons.Plus className="w-5 h-5" /> 新增商品
                     </button>
@@ -4294,7 +4342,7 @@
                         </div>
                         <div className="flex flex-col gap-1.5 flex-shrink-0">
                           <button title="編輯" onClick={() => {
-                            let ep = {...p, variantGroups:[], variantStocks:{}};
+                            let ep = {...p, variantGroups:[], variantStocks:{}, variantImages:{}};
                             if (p.variantGroupsJson) { try { ep.variantGroups=JSON.parse(p.variantGroupsJson); } catch(err){} }
                             else if (p.variants && p.variants.length) {
                               ep.variantGroups = [{name:p.variantType||'規格', options:p.variants}];
@@ -4304,6 +4352,7 @@
                               ep.variantStocks=m;
                             }
                             if (p.variantStocksJson) { try { ep.variantStocks=JSON.parse(p.variantStocksJson); } catch(err){} }
+                            if (p.variantImagesJson) { try { ep.variantImages=JSON.parse(p.variantImagesJson); } catch(err){} }
                             setEditProduct(ep);
                           }} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
                           <button title="複製" onClick={async () => {
