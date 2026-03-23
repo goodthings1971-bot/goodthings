@@ -34,8 +34,23 @@
     .product-desc blockquote { border-left:3px solid #a3e635; padding-left:0.8em; color:#6b7280; margin:0.4em 0; }
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     body { -webkit-tap-highlight-color: transparent; }
-    :root { --app-font-scale: 1; }
+    :root {
+      --app-font-scale: 1;
+      --app-font-color: #1f2937;
+      /* Theme palette */
+      --t-primary: #65a30d;      /* lime-600 */
+      --t-primary-dark: #4d7c0f; /* lime-700 */
+      --t-primary-light: #ecfccb;/* lime-50 */
+      --t-primary-mid: #d9f99d;  /* lime-200 */
+      --t-primary-text: #3f6212; /* lime-800 */
+      --t-primary-border: #a3e635;/* lime-400 */
+      --t-accent: #84cc16;
+      --t-btn-text: #ffffff;
+      --t-nav-bg: #ffffff;
+      --t-nav-active: #65a30d;
+    }
     .app-scalable { font-size: calc(1em * var(--app-font-scale)); }
+    body { color: var(--app-font-color); }
     /* 按鈕點擊反饋 */
     .btn-action { position:relative; overflow:hidden; transition: opacity 0.15s, transform 0.1s; }
     .btn-action:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
@@ -91,8 +106,40 @@
 
     // --- 重要設定 ---
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxG9xUAxbLvWf6fP9solDNtHgHJ8BV3PpMZwYwhXcl7T7BYQ10cU1c3VLL3yFV6ZNvF/exec';
-    const LIFF_ID = '2009509146-5abropeK';
-    const ADMIN_IDS = ['U89b6252b1bd14211697d25bf39052e92', 'U14d8bef8cbaceb57db3eefc526282b13', 'Ub5247090bdb3197a728d4da7e4034c3d', 'Ue3e081bfb2b0854db7a5ae831ab31624'];
+    const LIFF_ID = '2009248623-E3UOP9Mc';
+    const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13', 'Ub5247090bdb3197a728d4da7e4034c3d', 'U80596001d501a185268e3f79663767b0'];
+
+    // ── 主題色系定義 ──
+    const APP_THEMES = [
+      { id:'green',  name:'森林綠（預設）', emoji:'🌿',
+        primary:'#65a30d', dark:'#4d7c0f', light:'#ecfccb', mid:'#d9f99d', text:'#3f6212', border:'#a3e635', accent:'#84cc16', btn:'#ffffff', nav:'#ffffff', navActive:'#65a30d' },
+      { id:'blue',   name:'海洋藍', emoji:'🌊',
+        primary:'#2563eb', dark:'#1d4ed8', light:'#eff6ff', mid:'#bfdbfe', text:'#1e3a8a', border:'#93c5fd', accent:'#3b82f6', btn:'#ffffff', nav:'#ffffff', navActive:'#2563eb' },
+      { id:'purple', name:'薰衣紫', emoji:'💜',
+        primary:'#7c3aed', dark:'#6d28d9', light:'#f5f3ff', mid:'#ddd6fe', text:'#4c1d95', border:'#c4b5fd', accent:'#8b5cf6', btn:'#ffffff', nav:'#ffffff', navActive:'#7c3aed' },
+      { id:'rose',   name:'玫瑰紅', emoji:'🌹',
+        primary:'#e11d48', dark:'#be123c', light:'#fff1f2', mid:'#fecdd3', text:'#881337', border:'#fda4af', accent:'#f43f5e', btn:'#ffffff', nav:'#ffffff', navActive:'#e11d48' },
+      { id:'amber',  name:'暖陽橙', emoji:'🌅',
+        primary:'#d97706', dark:'#b45309', light:'#fffbeb', mid:'#fde68a', text:'#78350f', border:'#fcd34d', accent:'#f59e0b', btn:'#ffffff', nav:'#ffffff', navActive:'#d97706' },
+      { id:'dark',   name:'深夜黑', emoji:'🌙',
+        primary:'#334155', dark:'#1e293b', light:'#f1f5f9', mid:'#cbd5e1', text:'#0f172a', border:'#64748b', accent:'#475569', btn:'#ffffff', nav:'#1e293b', navActive:'#94a3b8' },
+    ];
+
+    const applyTheme = (themeId, fontColor) => {
+      const t = APP_THEMES.find(x => x.id === themeId) || APP_THEMES[0];
+      const r = document.documentElement;
+      r.style.setProperty('--t-primary',      t.primary);
+      r.style.setProperty('--t-primary-dark', t.dark);
+      r.style.setProperty('--t-primary-light',t.light);
+      r.style.setProperty('--t-primary-mid',  t.mid);
+      r.style.setProperty('--t-primary-text', t.text);
+      r.style.setProperty('--t-primary-border',t.border);
+      r.style.setProperty('--t-accent',       t.accent);
+      r.style.setProperty('--t-btn-text',     t.btn);
+      r.style.setProperty('--t-nav-bg',       t.nav);
+      r.style.setProperty('--t-nav-active',   t.navActive);
+      if (fontColor) r.style.setProperty('--app-font-color', fontColor);
+    };
 
     // --- 轉帳資訊 ---
     const TRANSFER_INFO = [
@@ -275,6 +322,10 @@
                   // 套用字體大小設定
                   const scale = parseFloat(s.appFontScale) || 1;
                   document.documentElement.style.setProperty('--app-font-scale', scale);
+                  // 套用主題和字體顏色
+                  if (s.appTheme || s.appFontColor) {
+                    applyTheme(s.appTheme || 'green', s.appFontColor || '#1f2937');
+                  }
                 }
                 if (p) {
                   setAllProducts(p);
@@ -600,7 +651,7 @@
         setRefreshing(true);
         try {
           const [s, p, c] = await Promise.all([api.fetchSettings(), api.fetchProducts(), api.fetchCategories()]);
-          if (s) setSettings(s);
+          if (s) { setSettings(s); if (s.appTheme || s.appFontColor) applyTheme(s.appTheme||'green', s.appFontColor||'#1f2937'); }
           if (p) setAllProducts(p);
           if (c && Array.isArray(c)) setAllCategories(c);
         } catch(e) { console.error('Refresh failed', e); }
@@ -2759,15 +2810,47 @@
 
       const getVideoEmbed = (url) => {
         if (!url) return null;
-        let embedUrl = null;
+        // ── YouTube ──
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
-          const vid = (url.split('v=')[1] || url.split('/').pop()).split('&')[0].split('?')[0];
-          embedUrl = `https://www.youtube.com/embed/${vid}`;
-        } else if (url.includes('facebook.com')) {
-          embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`;
+          let vid = '';
+          if (url.includes('youtu.be/')) vid = url.split('youtu.be/')[1].split('?')[0];
+          else if (url.includes('v=')) vid = url.split('v=')[1].split('&')[0];
+          else if (url.includes('/shorts/')) vid = url.split('/shorts/')[1].split('?')[0];
+          if (!vid) return null;
+          const embedUrl = `https://www.youtube.com/embed/${vid}?playsinline=1`;
+          return (
+            <div className="aspect-video w-full mt-4 rounded-xl overflow-hidden shadow-sm">
+              <iframe src={embedUrl} className="w-full h-full" frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen></iframe>
+            </div>
+          );
         }
-        if (embedUrl) return <div className="aspect-video w-full mt-4 rounded-xl overflow-hidden shadow-sm"><iframe src={embedUrl} className="w-full h-full" frameBorder="0" allowFullScreen></iframe></div>;
-        return <div className="mt-4 p-4 bg-gray-100 rounded-xl text-center"><a href={url} target="_blank" className="text-blue-600 underline">點此觀看影片</a></div>;
+        // ── Facebook 影片 / Reels ──
+        if (url.includes('facebook.com') || url.includes('fb.watch')) {
+          // Reels / 短影音 為直立式（9:16），一般影片為橫式（16:9）
+          const isReel = url.includes('/reel/') || url.includes('/reels/') || url.includes('stories');
+          const fbEmbedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0&width=560&autoplay=0`;
+          return (
+            <div className="mt-4 rounded-xl overflow-hidden shadow-sm bg-gray-900">
+              <div className="w-full relative" style={{aspectRatio: isReel ? '9/16' : '16/9'}}>
+                <iframe src={fbEmbedUrl} className="w-full h-full" frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  allowFullScreen scrolling="no" style={{display:'block'}}></iframe>
+              </div>
+              <a href={url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 active:bg-blue-800 transition-colors">
+                <span>📘</span><span>在 Facebook 觀看完整影片</span>
+              </a>
+            </div>
+          );
+        }
+        // ── 其他連結 ──
+        return (
+          <div className="mt-4 p-4 bg-gray-100 rounded-xl text-center">
+            <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold">▶ 點此觀看影片</a>
+          </div>
+        );
       };
 
       if (loading) return (
@@ -3608,7 +3691,7 @@
                         className="w-full p-2 border rounded-lg text-xs text-gray-500" placeholder="或直接貼上圖片網址（多個用逗號分隔）" />
                     </div>
                   </div>
-                  <div><label className="text-xs text-gray-500 block mb-1">影片連結 (YouTube / Facebook)</label><input value={editProduct.videoUrl||''} onChange={e=>setEditProduct({...editProduct,videoUrl:e.target.value})} className="w-full p-2 border rounded-lg" placeholder="https://youtu.be/..." /></div>
+                  <div><label className="text-xs text-gray-500 block mb-1">影片連結（YouTube / Facebook 影片或 Reels）</label><input value={editProduct.videoUrl||''} onChange={e=>setEditProduct({...editProduct,videoUrl:e.target.value})} className="w-full p-2 border rounded-lg" placeholder="https://youtu.be/... 或 https://www.facebook.com/reel/..." /></div>
                   {/*多規格設定*/}
                   <div className="border-2 border-lime-200 rounded-xl p-3 bg-lime-50 space-y-3">
                     <div className="flex items-center justify-between">
@@ -4661,6 +4744,69 @@
                       </div>
                       <div className="text-xs text-gray-400 mt-1">影響會員中心快速功能、優惠券連結等文字大小</div>
                     </div>
+
+                    {/*──── 版面風格主題 ────*/}
+                    <div className="border-t pt-4">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">🎨 版面風格主題</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {APP_THEMES.map(t => {
+                          const isActive = (adminSettings.appTheme || 'green') === t.id;
+                          return (
+                            <button key={t.id}
+                              onClick={() => {
+                                setAdminSettings(s => ({...s, appTheme: t.id}));
+                                applyTheme(t.id, adminSettings.appFontColor || '#1f2937');
+                              }}
+                              className={`relative flex flex-col items-center gap-1.5 py-3 px-2 rounded-2xl border-2 font-bold text-xs transition-all ${isActive ? 'border-gray-800 shadow-md scale-105' : 'border-gray-200 hover:border-gray-400'}`}
+                              style={isActive ? {background: t.light, borderColor: t.primary} : {}}>
+                              {/* 色塊預覽 */}
+                              <div className="flex gap-0.5">
+                                <span className="w-5 h-5 rounded-full border border-white/50 shadow-sm" style={{background: t.primary}}></span>
+                                <span className="w-5 h-5 rounded-full border border-white/50 shadow-sm" style={{background: t.accent}}></span>
+                                <span className="w-5 h-5 rounded-full border border-white/50 shadow-sm" style={{background: t.mid}}></span>
+                              </div>
+                              <span className="text-[10px] text-gray-600 leading-tight text-center">{t.emoji} {t.name.split('（')[0]}</span>
+                              {isActive && <span className="absolute top-1 right-1.5 text-[10px]" style={{color: t.primary}}>✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/*──── 字體顏色設定 ────*/}
+                    <div className="border-t pt-4">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">🖊️ 字體顏色</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color"
+                          value={adminSettings.appFontColor || '#1f2937'}
+                          onChange={e => {
+                            setAdminSettings(s => ({...s, appFontColor: e.target.value}));
+                            document.documentElement.style.setProperty('--app-font-color', e.target.value);
+                          }}
+                          className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                        <div className="flex-1 space-y-1">
+                          <div className="flex gap-2 flex-wrap">
+                            {['#1f2937','#111827','#374151','#4b5563','#1e3a5f','#3b0764','#450a0a','#064e3b'].map(c => (
+                              <button key={c} onClick={() => {
+                                  setAdminSettings(s=>({...s,appFontColor:c}));
+                                  document.documentElement.style.setProperty('--app-font-color', c);
+                                }}
+                                className={`w-7 h-7 rounded-full border-2 transition-all ${adminSettings.appFontColor===c?'border-gray-800 scale-110':'border-gray-200 hover:border-gray-400'}`}
+                                style={{background:c}} title={c} />
+                            ))}
+                          </div>
+                          <button onClick={() => {
+                              const def = '#1f2937';
+                              setAdminSettings(s=>({...s,appFontColor:def}));
+                              document.documentElement.style.setProperty('--app-font-color', def);
+                            }}
+                            className="text-xs text-gray-400 hover:text-gray-600">↺ 恢復預設</button>
+                        </div>
+                        <div className="text-xs text-gray-400 font-mono">{adminSettings.appFontColor||'#1f2937'}</div>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">影響全站主要文字顏色</p>
+                    </div>
+
                     <div className="border-t pt-4">
                       <h4 className="font-bold text-base mb-3">🎰 每日好運設定</h4>
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 mb-3">
