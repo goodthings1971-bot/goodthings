@@ -107,7 +107,7 @@
     // --- 重要設定 ---
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxG9xUAxbLvWf6fP9solDNtHgHJ8BV3PpMZwYwhXcl7T7BYQ10cU1c3VLL3yFV6ZNvF/exec';
     const LIFF_ID = '2009248623-E3UOP9Mc';
-    const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13', 'Ub5247090bdb3197a728d4da7e4034c3d', 'U80596001d501a185268e3f79663767b0'];
+    const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13', 'Ub5247090bdb3197a728d4da7e4034c3d', 'Ue3e081bfb2b0854db7a5ae831ab31624'];
 
     // ── 主題色系定義 ──
     const APP_THEMES = [
@@ -336,7 +336,14 @@
             };
             await Promise.all([loadLiff(), loadData()]);
             setLoadProgress(100);
-          } finally { setIsLoading(false); }
+          } catch(outerErr) {
+            console.error('initApp outer error:', outerErr);
+          } finally {
+            // 確保 user 不為 null（防止 LIFF 失敗後空白畫面）
+            setUser(prev => prev || { lineId: 'guest', name: '訪客', points: 0, coupons: [] });
+            setSettings(prev => prev || {});
+            setIsLoading(false);
+          }
         };
         initApp();
       }, []);
@@ -5579,6 +5586,24 @@
     }
   </script>
 <script>
+// 捕捉未處理的 Promise rejection，顯示錯誤資訊而非空白畫面
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('Unhandled rejection:', e.reason);
+  var msg = (e.reason && (e.reason.message || String(e.reason))) || '未知錯誤';
+  // 只顯示非 LIFF 的嚴重錯誤
+  if (msg.includes('liff') || msg.includes('LIFF') || msg.includes('LiffError')) return;
+  var d = document.getElementById('error-log');
+  var c = document.getElementById('error-content');
+  if (d && c) {
+    d.style.display='block';
+    c.innerHTML='<div><strong style="font-size:15px">⚠️ 執行期錯誤：</strong><br><br><pre style="white-space:pre-wrap;font-size:12px;color:#ffff99;background:rgba(0,0,0,0.4);padding:12px;border-radius:8px;margin-top:8px">'+msg.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre><p style="font-size:11px;color:#fcc;margin-top:8px">請截圖此錯誤回報給開發者</p><button onclick="window.location.reload()" style="margin-top:12px;background:#fff;color:#c00;padding:8px 16px;border-radius:8px;font-weight:bold;border:none;cursor:pointer">重新載入</button></div>';
+  }
+});
+// 捕捉一般 JS 錯誤
+window.onerror = function(msg, src, line, col, err) {
+  if (msg && (msg.includes('liff') || msg.includes('Script error'))) return;
+  console.error('Global error:', msg, 'at', src, line);
+};
 (function(){
   var src = document.getElementById('_src').textContent;
   try {
