@@ -10,7 +10,9 @@
   <script src="https://unpkg.com/history@5/umd/history.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-router@6.3.0/umd/react-router.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js" crossorigin></script>
+  <!-- Babel：先嘗試 unpkg，失敗改用 cdnjs -->
+  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js" crossorigin
+    onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js';s.crossOrigin='anonymous';document.head.appendChild(s);console.warn('Babel: unpkg failed, using cdnjs fallback');"></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -107,7 +109,7 @@
     // --- 重要設定 ---
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxG9xUAxbLvWf6fP9solDNtHgHJ8BV3PpMZwYwhXcl7T7BYQ10cU1c3VLL3yFV6ZNvF/exec';
     const LIFF_ID = '2009509146-5abropeK';
-    const ADMIN_IDS = ['U89b6252b1bd14211697d25bf39052e92', 'U14d8bef8cbaceb57db3eefc526282b13', 'Ub5247090bdb3197a728d4da7e4034c3d', 'Ue3e081bfb2b0854db7a5ae831ab31624'];
+    const ADMIN_IDS = ['Ua66fd77f72e4524075afd856cae91587', 'U14d8bef8cbaceb57db3eefc526282b13', 'Ub5247090bdb3197a728d4da7e4034c3d', 'Ue3e081bfb2b0854db7a5ae831ab31624', 'U89b6252b1bd14211697d25bf39052e92'];
 
     // ── 主題色系定義 ──
     const APP_THEMES = [
@@ -4849,7 +4851,12 @@
                           setTimeout(()=>{ btn.disabled=false; btn.textContent='儲存設定'; }, 2000);
                           // 立即更新全域 settings context，讓前台即時生效
                           const fresh = await api.fetchSettings();
-                          if (fresh && !fresh.error) { setAdminSettings(fresh); setSettings(fresh); }
+                          if (fresh && !fresh.error) {
+                            setAdminSettings(fresh);
+                            setSettings(fresh);
+                            // 立即套用新主題和字體顏色
+                            applyTheme(fresh.appTheme || 'green', fresh.appFontColor || '#1f2937');
+                          }
                           showAlert('設定已更新');
                         }
                         else { showAlert('更新失敗：' + (r?.error||'')); btn.disabled = false; btn.textContent = '儲存設定'; }
@@ -5521,6 +5528,49 @@
     // =====================================================
     // App Root
     // =====================================================
+    // ── 主題樣式注入器：將 CSS 變數套用到 Tailwind 元件 ──
+    const ThemeStyleInjector = () => {
+      const { settings } = useAppContext();
+      const theme = settings?.appTheme || 'green';
+      const fontColor = settings?.appFontColor || '#1f2937';
+      // 每次 theme/fontColor 改變，applyTheme 已更新 CSS 變數
+      // 這裡注入一個 <style> 覆蓋 Tailwind hardcoded lime 類別
+      return React.createElement('style', { key: theme + fontColor, dangerouslySetInnerHTML: { __html: `
+        /* 主題色覆蓋 - 主按鈕 */
+        .theme-btn-primary, .bg-lime-600 { background-color: var(--t-primary) !important; }
+        .bg-lime-500 { background-color: var(--t-accent) !important; }
+        .bg-lime-700 { background-color: var(--t-primary-dark) !important; }
+        .bg-lime-50  { background-color: var(--t-primary-light) !important; }
+        .bg-lime-100 { background-color: var(--t-primary-mid) !important; }
+        /* 文字顏色 */
+        .text-lime-600 { color: var(--t-primary) !important; }
+        .text-lime-700 { color: var(--t-primary-dark) !important; }
+        .text-lime-800 { color: var(--t-primary-text) !important; }
+        .text-lime-500 { color: var(--t-accent) !important; }
+        /* 邊框 */
+        .border-lime-500 { border-color: var(--t-primary) !important; }
+        .border-lime-400 { border-color: var(--t-primary-border) !important; }
+        .border-lime-200 { border-color: var(--t-primary-mid) !important; }
+        .border-lime-300 { border-color: var(--t-primary-border) !important; }
+        /* 漸層按鈕（加入購物車、儲存等）*/
+        .from-lime-400 { --tw-gradient-from: var(--t-accent) !important; }
+        .to-emerald-500 { --tw-gradient-to: var(--t-primary-dark) !important; }
+        .from-lime-600 { --tw-gradient-from: var(--t-primary) !important; }
+        /* ring */
+        .ring-lime-300 { --tw-ring-color: var(--t-primary-mid) !important; }
+        .shadow-lime-200 { --tw-shadow-color: var(--t-primary-mid) !important; }
+        /* BottomNav active */
+        .bg-lime-500.text-white { background-color: var(--t-primary) !important; }
+        /* 加入購物車大按鈕 */
+        .bg-lime-600.text-white { background-color: var(--t-primary) !important; color: var(--t-btn-text) !important; }
+        /* 全站字體顏色 */
+        body, .text-gray-800, .text-gray-700, .font-bold { color: var(--app-font-color); }
+        .text-gray-800 { color: var(--app-font-color) !important; }
+        /* 標題與說明文字維持相對淡色 */
+        .text-gray-500, .text-gray-400, .text-gray-300 { opacity: 0.7; }
+      ` } });
+    };
+
     const App = () => {
       // ✅ 電腦版偵測：非手機且非 LIFF 環境顯示提示頁
       const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -5556,6 +5606,7 @@
       <ErrorBoundary>
         <AppProvider>
           <DialogProvider>
+            <ThemeStyleInjector />
             <HashRouter>
               <Routes>
                 <Route path="/" element={<Home />} />
