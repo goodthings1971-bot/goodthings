@@ -328,6 +328,12 @@
         const initApp = async () => {
           try {
             try { const s = localStorage.getItem('cart'); if (s) setCart(JSON.parse(s)); } catch(e) {}
+            // 🎨 第一優先：從 localStorage 快取讀取上次的主題設定，立即套用避免閃白
+            try {
+              const cachedTheme = localStorage.getItem('_appTheme');
+              const cachedColor = localStorage.getItem('_appFontColor');
+              if (cachedTheme) applyTheme(cachedTheme, cachedColor || '#1f2937');
+            } catch(e) {}
             setLoadProgress(10);
             const loadLiff = async () => {
               if (typeof liff === 'undefined') { setUser({ lineId: 'guest', name: '訪客', points: 0 }); return; }
@@ -355,9 +361,12 @@
                   // 套用字體大小設定
                   const scale = parseFloat(s.appFontScale) || 1;
                   document.documentElement.style.setProperty('--app-font-scale', scale);
-                  // 套用主題和字體顏色
+                  // 套用主題和字體顏色，並快取供下次首屏使用
                   applyTheme(s.appTheme || 'green', s.appFontColor || '#1f2937');
                   applyColorSettings(s);
+                  try { localStorage.setItem('_appTheme', s.appTheme||'green'); localStorage.setItem('_appFontColor', s.appFontColor||'#1f2937'); } catch(e) {}
+                  window.__fansPageId = s.fansPageId || '@943gporw';
+                  window.__lineOfficialUrl = s.lineOfficialUrl || 'https://lin.ee/ylytZsx';
                 }
                 if (p) {
                   setAllProducts(p);
@@ -416,7 +425,7 @@
               </div>
               <h1 className="text-2xl font-black tracking-wide" style={{color:'var(--t-primary-text)'}}>美好的事</h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full border" style={{background:'var(--t-primary-light)',color:'var(--t-primary)',borderColor:'var(--t-primary-mid)'}}>V2.10</span>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full border" style={{background:'var(--t-primary-light)',color:'var(--t-primary)',borderColor:'var(--t-primary-mid)'}}>V2.20</span>
                 <span className="text-gray-400 text-xs">{progressLabel}</span>
               </div>
             </div>
@@ -454,6 +463,7 @@
         <AppContext.Provider value={{
           cart, addToCart, updateQuantity, clearCart: () => setCart([]), cartTotal,
           user, setUser, settings, setSettings, shippingFee, cvsFee, isFreeShipping, pointsUsed,
+          isDesktopGuest: false,
           redeemableProducts, allProducts, setAllProducts, allCategories, setAllCategories,
           updateUserProfile: (p) => { const nu = { ...user, ...p }; setUser(nu); api.updateUserProfile(nu); },
           redeemItem: (p) => {
@@ -1246,6 +1256,15 @@
       // 切換取貨方式時自動設定預設付款方式
       React.useEffect(() => {
         if (allVirtual) { setDeliveryMethod('virtual'); setPaymentMethod('transfer'); return; }
+        // Auto-select first enabled delivery method
+        const enabledMethods = [
+          {id:'shipping', enabled: settings?.enableShipping !== 'false'},
+          {id:'cvs',      enabled: settings?.enableCvs     !== 'false'},
+          {id:'pickup',   enabled: settings?.enablePickup  !== 'false'},
+        ].filter(m=>m.enabled);
+        if (enabledMethods.length && !enabledMethods.find(m=>m.id===deliveryMethod)) {
+          setDeliveryMethod(enabledMethods[0].id);
+        }
         if (deliveryMethod === 'pickup') setPaymentMethod('store');
         else if (deliveryMethod === 'cvs') setPaymentMethod('cod');
         else setPaymentMethod('transfer'); // 宅配只有轉帳
@@ -1612,7 +1631,11 @@
             <div className="bg-white p-4 rounded-2xl shadow-sm space-y-3">
               <h3 className="font-bold text-gray-800">取貨方式</h3>
               <div className="grid grid-cols-3 gap-2">
-                {[{id:'shipping',icon:Icons.Truck,label:'宅配寄送'},{id:'cvs',icon:Icons.Store,label:'超商取貨'},{id:'pickup',icon:Icons.ShoppingBag,label:'店面取貨'}].map(m => (
+                {[
+                  {id:'shipping',icon:Icons.Truck,label:'宅配寄送',  enabled: settings?.enableShipping !== 'false'},
+                  {id:'cvs',    icon:Icons.Store,label:'超商取貨',   enabled: settings?.enableCvs     !== 'false'},
+                  {id:'pickup', icon:Icons.ShoppingBag,label:'店面取貨',enabled: settings?.enablePickup  !== 'false'},
+                ].filter(m=>m.enabled).map(m => (
                   <button key={m.id} onClick={() => setDeliveryMethod(m.id)}
                     className={`p-2 rounded-xl border text-center font-bold text-sm ${deliveryMethod===m.id?'border-lime-500 bg-lime-50 text-lime-700':'border-gray-200 text-gray-500'}`}>
                     <m.icon className="w-5 h-5 mx-auto mb-1" />{m.label}
@@ -1728,9 +1751,9 @@
             </div>
           </div>
           <div className="fixed bottom-20 left-4 right-4 z-20">
-            <button onClick={handleSubmit} disabled={isSubmitting}
+            <button onClick={window.__isDesktopGuest ? ()=>alert('電腦版僅供瀏覽，購買請用手機 LINE 開啟。') : handleSubmit} disabled={isSubmitting && !window.__isDesktopGuest}
               className="w-full bg-lime-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-lime-200 active:scale-95 transition-transform disabled:opacity-50">
-              {isSubmitting ? '處理中...' : '確認結帳'}
+              {isSubmitting ? '處理中...' : window.__isDesktopGuest ? '📱 請用手機 LINE 購買' : '確認結帳'}
             </button>
           </div>
           <BottomNav active="cart" />
@@ -2070,6 +2093,7 @@
       const { showAlert } = useDialog();
       const navigate = useNavigate();
       const [isEditing, setIsEditing] = useState(false);
+      const [showShareModal, setShowShareModal] = useState(false);
       const [formData, setFormData] = useState({});
       const [isLotterySpinning, setIsLotterySpinning] = useState(false);
       const DRAW_TIPS = [
@@ -2293,7 +2317,7 @@
                 {e:'🔍',l:'商品搜尋',a:()=>navigate('/?search=1')},
                 {e:'🛍️',l:'購買說明',a:()=>navigate('/instructions')},
                 {e:'💬',l:'聯絡客服',a:()=>{const id='705jtuuh';if(typeof liff!=='undefined'&&liff.isInClient())liff.openWindow({url:`https://line.me/R/ti/p/@${id}`,external:true});else window.open(`https://line.me/R/ti/p/@${id}`,'_blank');}},
-                {e:'🔗',l:'分享商店',a:()=>{const url=window.location.href.split('#')[0];if(typeof liff!=='undefined'&&liff.isInClient()&&liff.isApiAvailable('shareTargetPicker')){liff.shareTargetPicker([{type:'text',text:`✨ 推薦你來逛逛！\n${url}`}]);}else{try{navigator.share({title:'推薦好店',url});}catch(e){navigator.clipboard?.writeText(url);showAlert('連結已複製！');}}  }},
+                {e:'🔗',l:'分享商店',a:()=>setShowShareModal(true)},
                 {e:'⭐',l:'我的評價',a:()=>navigate('/reviews')},
               ].map((item,i)=>(
                 <button key={i} onClick={item.a}
@@ -2353,6 +2377,55 @@
                 </div>
               </div>
             )}
+            {/*分享 Modal*/}
+            {showShareModal && (() => {
+              const shareText = settings?.shareText || '🎉 遇見美好的事，現在就差你一個！快來加入我們的 LINE 官方帳號，專屬好康、神祕優惠都在這裡等你喔！馬上點擊領取你的驚喜 👉 https://lin.ee/ylytZsx';
+              const lineUrl = settings?.lineOfficialUrl || 'https://lin.ee/ylytZsx';
+              return (
+                <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={()=>setShowShareModal(false)}>
+                  <div className="bg-white rounded-t-3xl w-full max-w-md p-6 pb-10 space-y-4 animate-scale-in" onClick={e=>e.stopPropagation()}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-black text-gray-800 text-lg">🔗 分享商店</h3>
+                      <button onClick={()=>setShowShareModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">✕</button>
+                    </div>
+                    <p className="text-xs text-gray-500 bg-gray-50 rounded-xl p-3 leading-relaxed">{shareText}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button onClick={()=>{
+                          try { navigator.clipboard.writeText(shareText); } catch(e) { const el=document.createElement('textarea');el.value=shareText;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el); }
+                          showAlert('✅ 分享文字已複製！');
+                        }}
+                        className="flex flex-col items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl py-4 active:scale-95 transition-all">
+                        <span className="text-2xl">📋</span>
+                        <span className="text-sm font-bold text-gray-700">複製連結</span>
+                      </button>
+                      <button onClick={()=>{
+                          if(typeof liff!=='undefined'&&liff.isInClient()&&liff.isApiAvailable('shareTargetPicker')){
+                            liff.shareTargetPicker([{type:'text',text:shareText}]).catch(()=>{});
+                          } else {
+                            window.open('https://line.me/R/msg/text/?'+encodeURIComponent(shareText),'_blank');
+                          }
+                          setShowShareModal(false);
+                        }}
+                        className="flex flex-col items-center gap-2 bg-green-50 border border-green-200 rounded-2xl py-4 active:scale-95 transition-all">
+                        <span className="text-2xl">💚</span>
+                        <span className="text-sm font-bold text-green-700">分享給好友</span>
+                      </button>
+                    </div>
+                    <button onClick={()=>{
+                        const lineId = settings?.fansPageId || '@943gporw';
+                        const url = 'https://line.me/R/ti/p/' + lineId;
+                        if(typeof liff!=='undefined'&&liff.isInClient()) liff.openWindow({url,external:true});
+                        else window.open(url,'_blank');
+                        setShowShareModal(false);
+                      }}
+                      className="w-full bg-green-500 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95">
+                      <span className="text-xl">➕</span> 加入 LINE 官方帳號
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/*許願池*/}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Icons.Gift className="w-5 h-5 text-lime-600" />許願池</h3>
@@ -4067,7 +4140,7 @@
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => navigate('/profile')}><Icons.ArrowLeft className="w-6 h-6" /></button>
               <h1 className="text-lg font-bold">管理員後台</h1>
-              <span className="ml-auto text-lime-200 text-xs">V2.10</span>
+              <span className="ml-auto text-lime-200 text-xs">V2.20</span>
             </div>
             {/*12格功能選單*/}
             <div className="grid grid-cols-4 gap-1.5">
@@ -4731,6 +4804,9 @@
                     <h3 className="font-bold text-lg">🏪 商店設定</h3>
                     {[
                       {key:'storeName',label:'店名',type:'text'},
+                      {key:'enableShipping',label:'✅ 開放宅配寄送',type:'toggle'},
+                      {key:'enableCvs',label:'✅ 開放超商取貨',type:'toggle'},
+                      {key:'enablePickup',label:'✅ 開放門市取貨',type:'toggle'},
                       {key:'shippingFee',label:'🚚 宅配運費 (元)',type:'number'},
                       {key:'cvsFee',label:'🏬 超商取貨運費 (元)',type:'number'},
                       {key:'freeShippingThreshold',label:'免運費門檻 (元)',type:'number'},
@@ -4739,6 +4815,9 @@
                       {key:'birthdayCouponMinSpend',label:'🎂 生日券最低消費 (元)',type:'number'},
                       {key:'storeAddress',label:'門市地址',type:'text'},
                       {key:'storePhone',label:'門市電話',type:'text'},
+                      {key:'fansPageId',label:'🌐 粉絲團 LINE ID（例：@943gporw）',type:'text'},
+                      {key:'lineOfficialUrl',label:'🔗 LINE 官方加好友連結（例：https://lin.ee/xxx）',type:'text'},
+                      {key:'shareText',label:'📢 分享文字內容（分享商店時傳送的訊息）',type:'text'},
                       {key:'marqueeText',label:'跑馬燈文字',type:'text'},
                       {key:'businessHours',label:'營業時間說明',type:'text'},
                       {key:'saleNoCoupon',label:'折扣商品（有原價的商品）不可使用優惠券',type:'toggle'},
@@ -4905,6 +4984,7 @@
                             // 立即套用新主題和字體顏色
                             applyTheme(fresh.appTheme || 'green', fresh.appFontColor || '#1f2937');
                             applyColorSettings(fresh);
+                            try { localStorage.setItem('_appTheme', fresh.appTheme||'green'); localStorage.setItem('_appFontColor', fresh.appFontColor||'#1f2937'); } catch(e) {}
                           }
                           showAlert('設定已更新');
                         }
@@ -5627,38 +5707,40 @@
       // ✅ 電腦版偵測：非手機且非 LIFF 環境顯示提示頁
       const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
       const isLiffClient = typeof liff !== 'undefined' && (() => { try { return liff.isInClient(); } catch(e) { return false; } })();
-      if (!isMobile && !isLiffClient) {
-        return (
-          <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#4ade80 0%,#22c55e 50%,#16a34a 100%)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'system-ui,sans-serif',padding:'24px'}}>
-            <div style={{background:'white',borderRadius:'24px',padding:'40px 32px',maxWidth:'420px',width:'100%',textAlign:'center',boxShadow:'0 20px 60px rgba(0,0,0,0.15)'}}>
-              <div style={{fontSize:'64px',marginBottom:'16px'}}>📱</div>
-              <h1 style={{fontSize:'22px',fontWeight:'900',color:'#166534',marginBottom:'8px'}}>請使用手機 LINE 開啟</h1>
-              <p style={{color:'#4b5563',fontSize:'14px',lineHeight:'1.7',marginBottom:'24px'}}>
-                訪客無法在電腦版瀏覽器購買<br/>
-                請在 LINE 手機中加入「美好的事」LINE 官方帳號
-              </p>
-              <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'16px',padding:'20px',marginBottom:'24px',textAlign:'left'}}>
-                <p style={{color:'#166534',fontSize:'13px',lineHeight:'1.8',margin:0}}>
-                  別錯過我們的最新消息！快加入 LINE 好友獲得限定的優惠資訊。<br/>
-                  透過以下連結將官方帳號加入好友吧。
-                </p>
-              </div>
-              <a href="https://lin.ee/5gUfccO" target="_blank" rel="noreferrer"
-                style={{display:'inline-flex',alignItems:'center',gap:'10px',background:'#06C755',color:'white',borderRadius:'12px',padding:'14px 28px',fontWeight:'800',fontSize:'16px',textDecoration:'none',boxShadow:'0 4px 12px rgba(6,199,85,0.4)'}}>
-                <span style={{fontSize:'20px'}}>💚</span> 加入 LINE 好友
-              </a>
-              <div style={{marginTop:'16px',fontSize:'12px',color:'#9ca3af'}}>
-                https://lin.ee/5gUfccO
-              </div>
-            </div>
-          </div>
-        );
-      }
+      // 電腦版：可以瀏覽，但不能購買（頂部顯示提示橫幅）
+      const isDesktopGuest = !isMobile && !isLiffClient;
+      window.__isDesktopGuest = isDesktopGuest;
       return (
       <ErrorBoundary>
         <AppProvider>
           <DialogProvider>
             <ThemeStyleInjector />
+            {isDesktopGuest && (() => {
+              const lineUrl = window.__lineOfficialUrl || 'https://lin.ee/ylytZsx';
+              const lineId = window.__fansPageId || '@943gporw';
+              return (
+                <div style={{position:'fixed',top:0,left:0,right:0,zIndex:9998,background:'linear-gradient(90deg,#06C755,#00a63e)',color:'white',padding:'10px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',boxShadow:'0 2px 12px rgba(0,0,0,0.2)',fontFamily:'system-ui,sans-serif'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                    <span style={{fontSize:'20px'}}>💚</span>
+                    <div>
+                      <div style={{fontWeight:'800',fontSize:'14px'}}>電腦版僅供瀏覽，購買請用手機 LINE 開啟</div>
+                      <div style={{fontSize:'11px',opacity:0.85}}>LINE 官方帳號：{lineId}</div>
+                    </div>
+                  </div>
+                  <div style={{display:'flex',gap:'8px',flexShrink:0}}>
+                    <button onClick={()=>{try{navigator.clipboard.writeText(lineId);}catch(e){}alert('LINE ID 已複製：'+lineId);}}
+                      style={{background:'rgba(255,255,255,0.2)',border:'1px solid rgba(255,255,255,0.4)',color:'white',borderRadius:'8px',padding:'6px 12px',fontWeight:'700',fontSize:'12px',cursor:'pointer'}}>
+                      複製 LINE ID
+                    </button>
+                    <a href={lineUrl} target="_blank" rel="noreferrer"
+                      style={{background:'white',color:'#06C755',borderRadius:'8px',padding:'6px 12px',fontWeight:'800',fontSize:'12px',textDecoration:'none',display:'flex',alignItems:'center',gap:'4px'}}>
+                      ➕ 加入好友
+                    </a>
+                  </div>
+                </div>
+              );
+            })()}
+            <div style={isDesktopGuest ? {paddingTop:'56px'} : {}}>
             <HashRouter>
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -5674,6 +5756,7 @@
                 <Route path="/admin" element={<AdminDashboard />} />
               </Routes>
             </HashRouter>
+            </div>
           </DialogProvider>
         </AppProvider>
       </ErrorBoundary>
